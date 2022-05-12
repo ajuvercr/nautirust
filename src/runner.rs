@@ -15,6 +15,8 @@ pub struct Runner {
     pub script:          String,
     #[serde(rename = "canUseChannel")]
     pub can_use_channel: Vec<String>,
+    #[serde(rename = "requiredFields")]
+    pub required_fields: Vec<String>,
     #[serde(skip_serializing)]
     pub schema:          JSONSchema,
 }
@@ -31,16 +33,19 @@ impl<'de> Deserialize<'de> for Runner {
             pub script:          String,
             #[serde(rename = "canUseChannel")]
             pub can_use_channel: Vec<String>,
+            #[serde(rename = "requiredFields")]
+            pub required_fields: Vec<String>,
         }
         let R {
             can_use_channel,
             script,
             id,
+            required_fields,
         } = <R as Deserialize>::deserialize(deserializer)?;
 
         let schema = json!({
             "type": "object",
-            "required": can_use_channel
+            "required": required_fields,
         });
 
         let schema = JSONSchema::compile(&schema).expect("valid schema");
@@ -48,6 +53,7 @@ impl<'de> Deserialize<'de> for Runner {
         Ok(Runner {
             id,
             schema,
+            required_fields,
             can_use_channel,
             script,
         })

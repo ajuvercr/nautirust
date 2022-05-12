@@ -1,0 +1,23 @@
+{
+  "id": "readCsv",
+  "runnerId": "JsRunner",
+  "config": {
+    "jsFile": "test.js",
+    "methodName": "pompolmoezen"
+  },
+  "args": [
+    {
+      "id": "csvLocation",
+      "requiredFields": [
+        "location"
+      ]
+    },
+    {
+      "id": "outputStream",
+      "type": "streamWriter",
+      "fields": [
+        "data"
+      ]
+    }
+  ]
+}

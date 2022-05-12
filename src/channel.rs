@@ -5,12 +5,14 @@ use async_std::fs::read_to_string;
 use glob::glob;
 use jsonschema::JSONSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize, Debug)]
 pub struct Channel {
     pub id:              String,
     #[serde(rename = "requiredFields")]
     pub required_fields: Vec<String>,
+    pub options:         Vec<Value>,
     #[serde(skip_serializing)]
     pub schema:          JSONSchema,
 }
@@ -25,10 +27,12 @@ impl<'de> Deserialize<'de> for Channel {
             id:              String,
             #[serde(rename = "requiredFields")]
             required_fields: Vec<String>,
+            options:         Option<Vec<Value>>,
         }
         let Ch {
             required_fields,
             id,
+            options,
         } = <Ch as Deserialize>::deserialize(deserializer)?;
 
         let schema = json!({
@@ -38,8 +42,18 @@ impl<'de> Deserialize<'de> for Channel {
 
         let schema = JSONSchema::compile(&schema).expect("valid schema");
 
+        let options = if let Some(options) = options {
+            options
+                .into_iter()
+                .filter(|option| schema.is_valid(option))
+                .collect()
+        } else {
+            Vec::new()
+        };
+
         Ok(Channel {
             id,
+            options,
             schema,
             required_fields,
         })

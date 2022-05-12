@@ -1,13 +1,12 @@
 use std::error::Error;
 
 use async_std::path::Path;
+use commands::Command;
 use config::builder::DefaultState;
 use config::ConfigBuilder;
-use glob::glob;
 use serde::{Deserialize, Serialize};
 
 extern crate jsonschema;
-#[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
@@ -17,7 +16,9 @@ extern crate async_std;
 use clap::{Parser, Subcommand};
 
 mod channel;
+mod commands;
 mod runner;
+mod step;
 
 const TOML_LOCATION: &'static str = "orchestrator.toml";
 
@@ -28,6 +29,10 @@ struct Args {
     #[clap(long)]
     config: Vec<String>,
 
+    /// Tempdir prefix
+    #[clap(short, long)]
+    tmp_dir: Option<String>,
+
     /// Glob to indicate channels locations
     #[clap(short, long)]
     channels: Option<String>,
@@ -37,15 +42,14 @@ struct Args {
     runners: Option<String>,
 
     #[clap(subcommand)]
-    command: Option<Commands>,
+    command: Command,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Adds files to myapp
-    Add { name: Option<String> },
     /// Run a steps
-    Run {
+    Run { file: Option<String> },
+    Generate {
         /// The actual steps
         steps: Vec<String>,
     },
@@ -53,16 +57,14 @@ enum Commands {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct AppConfig {
+    tmp_dir:  String,
     /// Glob to indicate channel locations
     channels: String,
     /// Glob to indicate runner locations
     runners:  String,
-
-    /// Execute steps?
-    steps: Option<Vec<String>>,
 }
 
-async fn load_cfg(args: Args) -> Result<AppConfig, Box<dyn Error>> {
+async fn load_cfg(args: Args) -> Result<(AppConfig, Command), Box<dyn Error>> {
     let mut tomls = args.config.clone();
     if tomls.is_empty() {
         tomls.push(TOML_LOCATION.to_string());
@@ -71,6 +73,7 @@ async fn load_cfg(args: Args) -> Result<AppConfig, Box<dyn Error>> {
     // First set some default value
     let mut builder = ConfigBuilder::<DefaultState>::default()
         .set_default("channels", "channels")?
+        .set_default("tmp_dir", "tmp")?
         .set_default("runners", "runners")?;
 
     // Try to override with config things
@@ -88,24 +91,14 @@ async fn load_cfg(args: Args) -> Result<AppConfig, Box<dyn Error>> {
     // Try to override with argument values
     builder = builder.set_override_option("channels", args.channels.clone())?;
     builder = builder.set_override_option("runners", args.runners.clone())?;
+    builder = builder.set_override_option("tmp_dir", args.tmp_dir.clone())?;
 
-    match args.command {
-        Some(Commands::Run { steps }) => {
-            if !steps.is_empty() {
-                builder = builder.set_override("steps", steps)?;
-            } else {
-                eprintln!("Cannot run without steps!");
-            }
-        }
-        _ => {}
-    }
-
-    Ok(builder.build()?.try_deserialize()?)
+    Ok((builder.build()?.try_deserialize()?, args.command))
 }
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let config = load_cfg(Args::parse()).await?;
+    let (config, command) = load_cfg(Args::parse()).await?;
     println!("{:?}", config);
 
     let channels = channel::parse_channels(&config.channels).await;
@@ -116,6 +109,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let pretty = serde_json::to_string_pretty(&runners)?;
     println!("runners {}", pretty);
+
+    command.execute(channels, runners).await;
 
     Ok(())
 }
