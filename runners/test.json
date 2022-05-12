@@ -1,0 +1,11 @@
+  {
+    "id": "JsRunner",
+    "runnerScript": "cd ../JsRunner && npm start {config}",
+    "canUseChannel": [
+      "KafkaChannel"
+    ],
+    "requiredFields": [
+      "jsFile",
+      "methodName"
+    ]
+  }
