@@ -1,19 +1,30 @@
+use std::collections::HashMap;
 use std::error::Error;
 
 use async_std::fs::read_to_string;
 use jsonschema::JSONSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
+use crate::channel::ChannelConfig;
 use crate::runner::Runner;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct StepArg {
+    pub id:    String,
+    #[serde(rename = "type")]
+    pub ty:    String,
+    #[serde(flatten)]
+    pub other: Map<String, Value>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Step {
-    id:        String,
+    pub id:        String,
     #[serde(rename = "runnerId")]
-    runner_id: String,
-    config:    Value,
-    args:      Vec<Value>,
+    pub runner_id: String,
+    pub config:    Value,
+    pub args:      Vec<StepArg>,
 }
 
 fn config_is_valid(schema: &JSONSchema, config: &Value) -> bool {
@@ -63,4 +74,51 @@ pub async fn parse_step<'a, S: AsRef<str>>(
     let file = read_to_string(path.as_ref()).await?;
     let channel: Step = serde_json::from_str(&file)?;
     Ok(channel)
+}
+pub struct StepArguments {
+    step: Value,
+    stream_reader: HashMap<String, Vec<ChannelConfig>>,
+
+    arguments: Vec<(String, Value)>,
+}
+
+impl StepArguments {
+    pub fn new(step: &Step) -> Self {
+        let value = serde_json::to_value(step).unwrap();
+        Self {
+            step: value,
+            stream_reader: HashMap::new(),
+            arguments:     Vec::new(),
+        }
+    }
+
+    pub fn add_argument(&mut self, id: String, value: Value) {
+        self.arguments.push((id, value));
+    }
+
+    pub fn use_target(&mut self, id: &str, config: ChannelConfig) {
+        if let Some(configs) = self.stream_reader.get_mut(id) {
+            configs.push(config);
+        } else {
+            self.stream_reader.insert(id.to_string(), vec![config]);
+        }
+    }
+
+    pub fn into_value(self) -> Value {
+        let mut out = HashMap::new();
+
+        self.arguments.into_iter().for_each(|(id, arg)| {
+            out.insert(id, arg);
+        });
+
+        self.stream_reader.into_iter().for_each(|(id, reader)| {
+            let value = serde_json::to_value(reader).unwrap();
+            out.insert(id, value);
+        });
+
+        json!({
+            "processorConfig": self.step,
+            "args": out
+        })
+    }
 }

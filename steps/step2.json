@@ -1,0 +1,18 @@
+{
+  "id": "bucketise",
+  "runnerId": "JsRunner",
+  "config": {
+    "jsFile": "test.js",
+    "methodName": "bucketize"
+  },
+  "args": [
+    {
+      "id": "inputStream",
+      "type": "streamReader",
+      "sourceIds": [
+        "inputData",
+        "someMetaData"
+      ]
+    }
+  ]
+}

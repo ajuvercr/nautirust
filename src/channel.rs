@@ -82,3 +82,22 @@ pub async fn parse_channel(path: PathBuf) -> Result<Channel, Box<dyn Error>> {
     let channel: Channel = serde_json::from_str(&file)?;
     Ok(channel)
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ChannelConfig {
+    id:     String,
+    #[serde(rename = "type")]
+    ty:     String,
+    config: Value,
+}
+
+impl ChannelConfig {
+    pub fn new(id: String, ty: String, config: Value) -> Self {
+        Self { id, ty, config }
+    }
+    pub fn with_name(&self, name: &str) -> Self {
+        let mut out = self.clone();
+        out.id = name.to_string();
+        out
+    }
+}

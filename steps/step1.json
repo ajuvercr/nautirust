@@ -8,6 +8,7 @@
   "args": [
     {
       "id": "csvLocation",
+      "type": "any",
       "requiredFields": [
         "location"
       ]
@@ -15,8 +16,9 @@
     {
       "id": "outputStream",
       "type": "streamWriter",
-      "fields": [
-        "data"
+      "targetIds": [
+        "data",
+        "metadata"
       ]
     }
   ]

@@ -7,7 +7,7 @@ pub struct Command {
     file: Option<String>,
 }
 impl Command {
-    pub(crate) async fn execute(self, channels: Vec<Channel>, runners: Vec<Runner>) {
+    pub(crate) async fn execute(self, _channels: Vec<Channel>, _runners: Vec<Runner>) {
         todo!()
     }
 }
