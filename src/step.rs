@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::path::Path;
 
 use async_std::fs::read_to_string;
 use jsonschema::JSONSchema;
@@ -25,6 +26,7 @@ pub struct Step {
     pub runner_id: String,
     pub config:    Value,
     pub args:      Vec<StepArg>,
+    pub location:  Option<String>,
 }
 
 fn config_is_valid(schema: &JSONSchema, config: &Value) -> bool {
@@ -42,7 +44,7 @@ pub async fn parse_steps<'a, S, I>(
     runners: &'a Vec<Runner>,
 ) -> Vec<Step>
 where
-    S: AsRef<str> + 'a,
+    S: AsRef<Path> + 'a,
     I: IntoIterator<Item = &'a S>,
 {
     let mut steps = Vec::new();
@@ -68,15 +70,19 @@ where
     steps
 }
 
-pub async fn parse_step<'a, S: AsRef<str>>(
+pub async fn parse_step<'a, S: AsRef<Path>>(
     path: &'a S,
 ) -> Result<Step, Box<dyn Error>> {
+    let p = path.as_ref();
+    let loc = p.parent().map(|p| p.display().to_string());
     let file = read_to_string(path.as_ref()).await?;
-    let channel: Step = serde_json::from_str(&file)?;
+    let mut channel: Step = serde_json::from_str(&file)?;
+    channel.location = loc;
     Ok(channel)
 }
+
 pub struct StepArguments {
-    step: Value,
+    step:          Value,
     stream_reader: HashMap<String, Vec<ChannelConfig>>,
 
     arguments: Vec<(String, Value)>,
@@ -86,7 +92,7 @@ impl StepArguments {
     pub fn new(step: &Step) -> Self {
         let value = serde_json::to_value(step).unwrap();
         Self {
-            step: value,
+            step:          value,
             stream_reader: HashMap::new(),
             arguments:     Vec::new(),
         }

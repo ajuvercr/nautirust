@@ -19,6 +19,8 @@ pub struct Runner {
     pub required_fields: Vec<String>,
     #[serde(skip_serializing)]
     pub schema:          JSONSchema,
+    #[serde(skip_serializing)]
+    pub location:        Option<PathBuf>,
 }
 
 impl<'de> Deserialize<'de> for Runner {
@@ -36,6 +38,7 @@ impl<'de> Deserialize<'de> for Runner {
             #[serde(rename = "requiredFields")]
             pub required_fields: Vec<String>,
         }
+
         let R {
             can_use_channel,
             script,
@@ -56,6 +59,7 @@ impl<'de> Deserialize<'de> for Runner {
             required_fields,
             can_use_channel,
             script,
+            location: None,
         })
     }
 }
@@ -94,7 +98,8 @@ pub async fn parse_runners(path: &str, channels: &Vec<Channel>) -> Vec<Runner> {
 }
 
 pub async fn parse_runner(path: PathBuf) -> Result<Runner, Box<dyn Error>> {
-    let file = read_to_string(path).await?;
-    let channel: Runner = serde_json::from_str(&file)?;
+    let file = read_to_string(&path).await?;
+    let mut channel: Runner = serde_json::from_str(&file)?;
+    channel.location = path.parent().map(|x| x.into());
     Ok(channel)
 }

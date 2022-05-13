@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Child;
 
 use async_std::fs::{self, read_to_string, write};
@@ -82,22 +82,35 @@ impl Command {
 
             let mut command = shlex::split(&runner.script).unwrap();
 
+            let cwd = std::env::current_dir().unwrap_or(PathBuf::from("./"));
+
             command.iter_mut().for_each(|part| {
                 if part == "{config}" {
                     *part = file.display().to_string();
+                }
+
+                if part == "{cwd}" {
+                    *part = cwd.display().to_string();
                 }
             });
 
             println!("spawning {}", command.join(" "));
 
-            let proc = std::process::Command::new(&command[0])
-                .args(&command[1..])
-                .spawn()
-                .unwrap();
+            let proc = if let Some(l) = &runner.location {
+                std::process::Command::new(&command[0])
+                    .args(&command[1..])
+                    .current_dir(l)
+                    .spawn()
+                    .unwrap()
+            } else {
+                std::process::Command::new(&command[0])
+                    .args(&command[1..])
+                    .spawn()
+                    .unwrap()
+            };
 
             procs.push(proc);
         }
-
 
         for mut proc in procs {
             proc.wait().unwrap();
