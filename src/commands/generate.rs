@@ -97,13 +97,15 @@ impl Command {
                             )
                             .expect("no good thing found");
 
-                            all_step_args
-                                .get_mut(tmp_target.step_id)
-                                .unwrap()
-                                .use_target(
-                                    tmp_target.writer_id,
-                                    config.with_name(tmp_target.name),
-                                );
+                            if let Some(tmp_target) = tmp_target {
+                                all_step_args
+                                    .get_mut(tmp_target.step_id)
+                                    .unwrap()
+                                    .use_target(
+                                        tmp_target.writer_id,
+                                        config.with_name(tmp_target.name),
+                                    );
+                            }
 
                             targets.push(config);
                         }
@@ -140,28 +142,52 @@ impl Command {
                 }
             }
 
-            all_step_args.insert(step.id.to_string(), step_args);
+            if let Some(_) =
+                all_step_args.insert(step.id.to_string(), step_args)
+            {
+                panic!("Found multiple steps with the same id '{}'", step.id);
+            }
         }
 
-        if open_channels.is_empty() {
-            let args = all_step_args
-                .into_values()
-                .map(StepArguments::into_value)
-                .collect::<Vec<_>>();
+        if !open_channels.is_empty() {
+            println!("Lingering channels detected!");
+            println!("Use remaining channel");
 
-            let pretty =
-                serde_json::to_string_pretty(&json!({ "values": args }))
-                    .unwrap();
+            for target in open_channels {
+                println!("for {}.{}.{}", target.step_id, target.writer_id, target.name);
 
-            if let Some(location) = self.output {
-                fs::write(location, pretty.as_bytes()).await.unwrap();
-            } else {
-                println!("\n");
-                println!("{}", pretty);
+                let (config, ty) = ask_user_for_channel(
+                    &target.possible_channels,
+                    &mut channel_options,
+                );
+                let ch_config = ChannelConfig::new(
+                    target.name.to_string(),
+                    ty.to_string(),
+                    config,
+                );
+
+                all_step_args
+                    .get_mut(target.step_id)
+                    .unwrap()
+                    .use_target(target.writer_id, ch_config);
             }
+        }
+
+        let args = all_step_args
+            .into_values()
+            .map(StepArguments::into_value)
+            .collect::<Vec<_>>();
+
+        println!("Got {} steps", args.len());
+
+        let pretty =
+            serde_json::to_string_pretty(&json!({ "values": args })).unwrap();
+
+        if let Some(location) = self.output {
+            fs::write(location, pretty.as_bytes()).await.unwrap();
         } else {
-            eprintln!("Lingering channels detected!");
-            eprintln!("{:?}", open_channels);
+            println!("\n");
+            println!("{}", pretty);
         }
     }
 }
@@ -171,7 +197,7 @@ fn ask_channel_config<'a>(
     channel_types: &Vec<String>,
     open_channels: &mut Vec<TmpTarget<'a>>,
     channel_options: &mut HashMap<String, Vec<Value>>,
-) -> Option<(ChannelConfig, TmpTarget<'a>)> {
+) -> Option<(ChannelConfig, Option<TmpTarget<'a>>)> {
     println!("'{}' wants a channel, options:", id);
     let options = open_channels
         .iter()
@@ -189,17 +215,40 @@ fn ask_channel_config<'a>(
         )
     });
 
+    println!("{} Other source (not from previous steps)", options.len());
+
     let n: usize = read!();
     println!();
 
-    let target = open_channels.remove(n);
+    let (target, types) = {
+        if n >= options.len() {
+            (None, channel_types.clone())
+        } else {
+            let target = open_channels.remove(n);
 
-    let types: Vec<_> = target
-        .possible_channels
-        .iter()
-        .filter(|c| channel_types.contains(c))
-        .collect();
+            let types: Vec<String> = target
+                .possible_channels
+                .iter()
+                .filter(|c| channel_types.contains(c))
+                .cloned()
+                .collect();
 
+            (Some(target), types)
+        }
+    };
+
+    let (config, ty) = ask_user_for_channel(&types, channel_options);
+
+    Some((
+        ChannelConfig::new(id.to_string(), ty.to_string(), config),
+        target,
+    ))
+}
+
+fn ask_user_for_channel<'a>(
+    types: &'a Vec<String>,
+    channel_options: &mut HashMap<String, Vec<Value>>,
+) -> (Value, &'a String) {
     println!("Choose channel type!");
     types
         .iter()
@@ -207,10 +256,10 @@ fn ask_channel_config<'a>(
         .for_each(|(i, t)| println!("{}: {}", i, t));
 
     let ty: usize = read!();
-    let ty = types[ty];
+    let ty = &types[ty];
     println!();
 
-    let options = channel_options.get_mut(ty)?;
+    let options = channel_options.get_mut(ty).unwrap();
     println!("Choose channel config!");
 
     options
@@ -221,10 +270,5 @@ fn ask_channel_config<'a>(
     let n: usize = read!();
     println!();
 
-    let config = options.remove(n);
-
-    Some((
-        ChannelConfig::new(id.to_string(), ty.to_string(), config),
-        target,
-    ))
+    (options.remove(n), ty)
 }

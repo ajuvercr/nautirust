@@ -106,12 +106,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let channels = channel::parse_channels(&config.channels).await;
     let runners = runner::parse_runners(&config.runners, &channels).await;
 
-    let pretty = serde_json::to_string_pretty(&channels)?;
-    println!("channels {}", pretty);
-
-    let pretty = serde_json::to_string_pretty(&runners)?;
-    println!("runners {}", pretty);
-
     command.execute(channels, runners).await;
 
     Ok(())

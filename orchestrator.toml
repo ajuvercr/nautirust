@@ -2,4 +2,3 @@ version = 7
 api_key = 'tests'
 channels = "channels/*.json"
 runners = "runners/*.json"
-steps = ["test", "test2"]
