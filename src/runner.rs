@@ -10,17 +10,19 @@ use crate::channel::Channel;
 
 #[derive(Serialize, Debug)]
 pub struct Runner {
-    pub id:              String,
+    pub id:                    String,
     #[serde(rename = "runnerScript")]
-    pub script:          String,
+    pub script:                String,
     #[serde(rename = "canUseChannel")]
-    pub can_use_channel: Vec<String>,
+    pub can_use_channel:       Vec<String>,
     #[serde(rename = "requiredFields")]
-    pub required_fields: Vec<String>,
+    pub required_fields:       Vec<String>,
+    #[serde(rename = "canUseSerialization")]
+    pub can_use_serialization: Vec<String>,
     #[serde(skip_serializing)]
-    pub schema:          JSONSchema,
+    pub schema:                JSONSchema,
     #[serde(skip_serializing)]
-    pub location:        Option<PathBuf>,
+    pub location:              Option<PathBuf>,
 }
 
 impl<'de> Deserialize<'de> for Runner {
@@ -30,17 +32,20 @@ impl<'de> Deserialize<'de> for Runner {
     {
         #[derive(Deserialize)]
         struct R {
-            pub id:              String,
+            pub id:                    String,
             #[serde(rename = "runnerScript")]
-            pub script:          String,
+            pub script:                String,
             #[serde(rename = "canUseChannel")]
-            pub can_use_channel: Vec<String>,
+            pub can_use_channel:       Vec<String>,
             #[serde(rename = "requiredFields")]
-            pub required_fields: Vec<String>,
+            pub required_fields:       Vec<String>,
+            #[serde(rename = "canUseSerialization")]
+            pub can_use_serialization: Vec<String>,
         }
 
         let R {
             can_use_channel,
+            can_use_serialization,
             script,
             id,
             required_fields,
@@ -58,6 +63,7 @@ impl<'de> Deserialize<'de> for Runner {
             schema,
             required_fields,
             can_use_channel,
+            can_use_serialization,
             script,
             location: None,
         })

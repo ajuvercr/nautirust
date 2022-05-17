@@ -1,7 +1,0 @@
-{
-  "id": "KafkaChannel",
-  "requiredFields": [
-    "topic",
-    "broker" 
-  ]
-}
