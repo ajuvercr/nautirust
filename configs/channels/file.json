@@ -1,0 +1,13 @@
+{
+  "id": "file",
+  "requiredFields": [
+    "path",
+    "onReplace"
+  ],
+  "options": [
+    {"path": "dataIn.json", "onReplace": true, "readFirstContent": true},
+    {"path": "dataOut.json", "onReplace": true},
+    {"path": "metadataIn.ttl", "onReplace": true, "readFirstContent": true},
+    {"path": "metadataOut.ttl", "onReplace": true}
+  ]
+}

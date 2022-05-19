@@ -1,0 +1,21 @@
+{
+  "id": "readCsv",
+  "runnerId": "JsRunner",
+  "config": {
+    "jsFile": "main.js",
+    "methodName": "writeTo"
+  },
+  "args": [
+    {
+      "id": "config",
+      "type": "any"
+    },
+    {
+      "id": "writer",
+      "type": "streamWriter",
+      "targetIds": [
+        "data"
+      ]
+    }
+  ]
+}

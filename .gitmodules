@@ -1,0 +1,3 @@
+[submodule "configs/runners/js-runner"]
+	path = configs/runners/js-runner
+	url = git@github.com:ajuvercr/js-runner.git
