@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::io::{self, BufRead};
 
 use async_std::fs;
 use serde::{Deserialize, Serialize};
@@ -33,14 +32,6 @@ struct TmpTarget<'a> {
     name:                    &'a str,
     possible_channels:       &'a Vec<String>,
     possible_serializations: &'a Vec<String>,
-}
-
-fn read_std_line() -> String {
-    let stdin = io::stdin();
-    let mut iterator = stdin.lock().lines();
-    let out = iterator.next().unwrap().unwrap();
-    println!("got line {}", out);
-    out
 }
 
 impl<'a> Display for TmpTarget<'a> {

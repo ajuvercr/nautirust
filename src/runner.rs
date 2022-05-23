@@ -96,7 +96,7 @@ pub async fn parse_runners(path: &str, channels: &Vec<Channel>) -> Vec<Runner> {
                     runners.push(runner);
                 }
             }
-            Err(e) => eprintln!("Parsing channel failed '{}'", e),
+            Err(e) => eprintln!("Parsing runner failed '{}'", e),
         }
     }
 

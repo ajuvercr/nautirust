@@ -74,7 +74,7 @@ pub async fn parse_step<'a, S: AsRef<Path>>(
     path: &'a S,
 ) -> Result<Step, Box<dyn Error>> {
     let p = path.as_ref();
-    let loc = p.parent().map(|p| p.display().to_string());
+    let loc = p.parent().and_then(|x| x.canonicalize().ok()).map(|p| p.display().to_string());
     let file = read_to_string(path.as_ref()).await?;
     let mut channel: Step = serde_json::from_str(&file)?;
     channel.location = loc;

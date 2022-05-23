@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::env;
+use std::path::Path;
 use std::process::Child;
 
 use async_std::fs::{self, read_to_string, write};
@@ -82,15 +83,21 @@ impl Command {
 
             let mut command = shlex::split(&runner.script).unwrap();
 
-            let cwd = std::env::current_dir().unwrap_or(PathBuf::from("./"));
-
             command.iter_mut().for_each(|part| {
                 if part == "{config}" {
-                    *part = file.display().to_string();
+                    *part = file
+                        .canonicalize()
+                        .expect("Couldn't canonicalize path :(")
+                        .display()
+                        .to_string()
                 }
 
                 if part == "{cwd}" {
-                    *part = cwd.display().to_string();
+                    *part = env::current_dir().unwrap()
+                        .canonicalize()
+                        .expect("Couldn't canonicalize path :(")
+                        .display()
+                        .to_string()
                 }
             });
 
