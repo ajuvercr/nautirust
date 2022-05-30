@@ -12,11 +12,11 @@ use crate::runner::Runner;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ProcConfig {
-    id:        String,
+    id: String,
     #[serde(rename = "runnerId")]
     runner_id: String,
     #[serde(flatten)]
-    other:     Value,
+    other: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,7 +36,7 @@ struct Values {
 /// Run the actual configs
 #[derive(clap::Args, Debug)]
 pub struct Command {
-    file:    String,
+    file: String,
     /// tmpdir to put temporary files
     #[clap(short, long)]
     tmp_dir: Option<String>,
@@ -93,7 +93,8 @@ impl Command {
                 }
 
                 if part == "{cwd}" {
-                    *part = env::current_dir().unwrap()
+                    *part = env::current_dir()
+                        .unwrap()
                         .canonicalize()
                         .expect("Couldn't canonicalize path :(")
                         .display()
@@ -102,19 +103,10 @@ impl Command {
             });
 
             println!("spawning {}", command.join(" "));
-
-            let proc = if let Some(l) = &runner.location {
-                std::process::Command::new(&command[0])
-                    .args(&command[1..])
-                    .current_dir(l)
-                    .spawn()
-                    .unwrap()
-            } else {
-                std::process::Command::new(&command[0])
-                    .args(&command[1..])
-                    .spawn()
-                    .unwrap()
-            };
+            let proc = super::start_subproc_cmdvec(
+                runner.location.as_ref().unwrap(),
+                command,
+            );
 
             procs.push(proc);
         }

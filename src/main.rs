@@ -59,11 +59,11 @@ enum Commands {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct AppConfig {
-    tmp_dir:  String,
+    tmp_dir: String,
     /// Glob to indicate channel locations
     channels: String,
     /// Glob to indicate runner locations
-    runners:  String,
+    runners: String,
 }
 
 async fn load_cfg(args: Args) -> Result<(AppConfig, Command), Box<dyn Error>> {

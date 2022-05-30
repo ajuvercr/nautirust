@@ -12,21 +12,21 @@ use crate::runner::Runner;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StepArg {
-    pub id:    String,
+    pub id: String,
     #[serde(rename = "type")]
-    pub ty:    String,
+    pub ty: String,
     #[serde(flatten)]
     pub other: Map<String, Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Step {
-    pub id:        String,
+    pub id: String,
     #[serde(rename = "runnerId")]
     pub runner_id: String,
-    pub config:    Value,
-    pub args:      Vec<StepArg>,
-    pub location:  Option<String>,
+    pub config: Value,
+    pub args: Vec<StepArg>,
+    pub location: Option<String>,
 }
 
 fn config_is_valid(schema: &JSONSchema, config: &Value) -> bool {
@@ -74,7 +74,10 @@ pub async fn parse_step<'a, S: AsRef<Path>>(
     path: &'a S,
 ) -> Result<Step, Box<dyn Error>> {
     let p = path.as_ref();
-    let loc = p.parent().and_then(|x| x.canonicalize().ok()).map(|p| p.display().to_string());
+    let loc = p
+        .parent()
+        .and_then(|x| x.canonicalize().ok())
+        .map(|p| p.display().to_string());
     let file = read_to_string(path.as_ref()).await?;
     let mut channel: Step = serde_json::from_str(&file)?;
     channel.location = loc;
@@ -82,7 +85,7 @@ pub async fn parse_step<'a, S: AsRef<Path>>(
 }
 
 pub struct StepArguments {
-    step:          Value,
+    step: Value,
     stream_reader: HashMap<String, Vec<ChannelConfig>>,
 
     arguments: Vec<(String, Value)>,
@@ -92,9 +95,9 @@ impl StepArguments {
     pub fn new(step: &Step) -> Self {
         let value = serde_json::to_value(step).unwrap();
         Self {
-            step:          value,
+            step: value,
             stream_reader: HashMap::new(),
-            arguments:     Vec::new(),
+            arguments: Vec::new(),
         }
     }
 

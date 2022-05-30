@@ -62,6 +62,7 @@ Example runner configuration:
   {
     "id": "JsRunner",
     "runnerScript": "node ./lib/index.js {config} {cwd}",
+    "stopScript": "...", 
     "canUseChannel": [
       "file", "ws"
     ],
@@ -74,6 +75,7 @@ Example runner configuration:
 
 Here a runner called JsRunner is defined. Required fields are
 - `runnerScript`: how is the runner started
+- `stopScript`: how the runner is stopped
 - `canUseChannel`: what channels can this runner provide to the processor
 
 Runners can also be configured by a step. Here it requires a `jsFile` and a `methodName`.
