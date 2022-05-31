@@ -11,26 +11,26 @@ use crate::channel::Channel;
 use crate::runner::Runner;
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ProcConfig {
-    id: String,
+pub struct ProcConfig {
+    pub id: String,
     #[serde(rename = "runnerId")]
-    runner_id: String,
+    pub runner_id: String,
     #[serde(flatten)]
     other: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct RunThing {
+pub struct RunThing {
     #[serde(rename = "processorConfig")]
-    processor_config: ProcConfig,
+    pub processor_config: ProcConfig,
 
     #[serde(flatten)]
     other: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Values {
-    values: Vec<RunThing>,
+pub struct Values {
+    pub values: Vec<RunThing>,
 }
 
 /// Run the actual configs
