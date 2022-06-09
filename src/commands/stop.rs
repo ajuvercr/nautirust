@@ -1,17 +1,14 @@
-use std::{
-    path::{Path, PathBuf},
-    process::Child,
-};
+use std::path::{Path, PathBuf};
+use std::process::Child;
 
-use crate::{
-    channel::Channel,
-    runner::{self, Runner},
-};
 use async_std::fs::read_to_string;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{run::Values, start_subproc};
+use super::run::Values;
+use super::start_subproc;
+use crate::channel::Channel;
+use crate::runner::{self, Runner};
 
 /// Gracefully stop the runners and channels specified in the config
 #[derive(clap::Args, Debug)]
@@ -30,20 +27,18 @@ impl Command {
                 .iter()
                 .find(|r| r.id == value.processor_config.runner_id)
                 .unwrap();
-            
-            let proc =  super::start_subproc(&runner.stop_script, runner.location.as_ref().unwrap());
+
+            let proc = super::start_subproc(
+                &runner.stop_script,
+                runner.location.as_ref().unwrap(),
+            );
 
             procs.push(proc);
         }
 
-
-
         // Stops the processors in the reverse order
         while !procs.is_empty() {
-
-            procs.pop().unwrap().wait().unwrap(); 
-
+            procs.pop().unwrap().wait().unwrap();
         }
-
     }
 }

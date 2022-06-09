@@ -9,12 +9,12 @@ use serde_json::Value;
 
 #[derive(Serialize, Debug)]
 pub struct Channel {
-    pub id: String,
+    pub id:              String,
     #[serde(rename = "requiredFields")]
     pub required_fields: Vec<String>,
-    pub options: Vec<Value>,
+    pub options:         Vec<Value>,
     #[serde(skip_serializing)]
-    pub schema: JSONSchema,
+    pub schema:          JSONSchema,
 }
 
 impl<'de> Deserialize<'de> for Channel {
@@ -24,10 +24,10 @@ impl<'de> Deserialize<'de> for Channel {
     {
         #[derive(Deserialize)]
         struct Ch {
-            id: String,
+            id:              String,
             #[serde(rename = "requiredFields")]
             required_fields: Vec<String>,
-            options: Option<Vec<Value>>,
+            options:         Option<Vec<Value>>,
         }
         let Ch {
             required_fields,
@@ -85,11 +85,11 @@ pub async fn parse_channel(path: PathBuf) -> Result<Channel, Box<dyn Error>> {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChannelConfig {
-    id: String,
+    id:            String,
     #[serde(rename = "type")]
-    ty: String,
+    ty:            String,
     serialization: String,
-    config: Value,
+    config:        Value,
 }
 
 impl ChannelConfig {
