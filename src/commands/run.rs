@@ -108,7 +108,7 @@ impl Command {
                 command,
             );
 
-            procs.push(proc);
+            procs.extend(proc);
         }
 
         for mut proc in procs {

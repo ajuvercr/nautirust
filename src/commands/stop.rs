@@ -29,7 +29,7 @@ impl Command {
                 runner.location.as_ref().unwrap(),
             );
 
-            procs.push(proc);
+            procs.extend(proc);
         }
 
         // Stops the processors in the reverse order

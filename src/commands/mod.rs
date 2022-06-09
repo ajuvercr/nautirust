@@ -61,7 +61,7 @@ fn expand_tilde<P: AsRef<Path>>(path_user_input: P) -> Option<PathBuf> {
 fn start_subproc<S: AsRef<OsStr>>(
     script: &str,
     location: S,
-) -> std::process::Child {
+) -> Vec<std::process::Child> {
     let command = shlex::split(&script).unwrap();
 
     start_subproc_cmdvec(expand_tilde(location.as_ref()).unwrap(), command)
@@ -70,15 +70,41 @@ fn start_subproc<S: AsRef<OsStr>>(
 fn start_subproc_cmdvec<S: AsRef<OsStr>>(
     location: S,
     command: Vec<String>,
-) -> std::process::Child {
+) -> Vec<std::process::Child> {
     let location = Path::new(&location);
-    let first_cmd = &command[0];
-    let snd_cmd = &command[1..];
-    let mut proc = std::process::Command::new(first_cmd);
-    proc.args(snd_cmd);
 
-    if location.exists() {
-        proc.current_dir(location);
+    let grouped_command = command.iter().fold( Vec::new(), |mut acc, x| {
+
+        if x == "&&" || x == "||" {
+            acc.push(Vec::new());
+            return acc
+        }
+        if acc.is_empty(){
+            acc.push(Vec::new());
+        }
+        acc.last_mut().unwrap().push(x); 
+        acc
+    });
+
+
+    let mut proc_vec = Vec::new(); 
+
+    for cmd  in grouped_command{
+        let prog  = cmd[0]; 
+        let args = &cmd[1..];
+        let mut proc  = std::process::Command::new(prog); 
+        
+        proc.args(args);
+
+        if location.exists() {
+            proc.current_dir(location);
+        }
+        proc_vec.push(proc.spawn().unwrap());
     }
-    proc.spawn().unwrap()
+
+
+    proc_vec
+
+
+
 }
