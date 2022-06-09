@@ -18,6 +18,14 @@ impl Command {
         let values: Values = serde_json::from_str(&content).unwrap();
 
         let mut procs: Vec<Child> = Vec::new();
+        let used_channels = super::get_used_channels(content, &_channels);
+
+        for chan in used_channels.values(){
+            let stop_procs =  super::start_subproc( chan.stop.as_ref().unwrap(), chan.location.as_ref().unwrap());
+            procs.extend(stop_procs);
+        }
+
+
         for value in values.values {
             let runner = runners
                 .iter()
