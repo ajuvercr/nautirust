@@ -1,14 +1,10 @@
-use std::path::{Path, PathBuf};
 use std::process::Child;
 
 use async_std::fs::read_to_string;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::run::Values;
-use super::start_subproc;
 use crate::channel::Channel;
-use crate::runner::{self, Runner};
+use crate::runner::{Runner};
 
 /// Gracefully stop the runners and channels specified in the config
 #[derive(clap::Args, Debug)]

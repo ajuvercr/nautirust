@@ -12,6 +12,9 @@ pub struct Channel {
     pub id:              String,
     #[serde(rename = "requiredFields")]
     pub required_fields: Vec<String>,
+    pub location:        Option<String>,
+    pub start:           Option<String>,
+    pub stop:            Option<String>,
     pub options:         Vec<Value>,
     #[serde(skip_serializing)]
     pub schema:          JSONSchema,
@@ -25,6 +28,9 @@ impl<'de> Deserialize<'de> for Channel {
         #[derive(Deserialize)]
         struct Ch {
             id:              String,
+            location:        Option<String>,
+            start:           Option<String>,
+            stop:            Option<String>,
             #[serde(rename = "requiredFields")]
             required_fields: Vec<String>,
             options:         Option<Vec<Value>>,
@@ -32,6 +38,9 @@ impl<'de> Deserialize<'de> for Channel {
         let Ch {
             required_fields,
             id,
+            location,
+            start,
+            stop,
             options,
         } = <Ch as Deserialize>::deserialize(deserializer)?;
 
@@ -53,6 +62,9 @@ impl<'de> Deserialize<'de> for Channel {
 
         Ok(Channel {
             id,
+            start,
+            stop,
+            location,
             options,
             schema,
             required_fields,
