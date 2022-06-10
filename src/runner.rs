@@ -11,8 +11,8 @@ use crate::channel::Channel;
 #[derive(Serialize, Debug)]
 pub struct Runner {
     pub id:                    String,
-    #[serde(rename = "stopScript")]
-    pub stop_script:           String,
+    pub start:                 Option<String>,
+    pub stop:                  Option<String>,
     #[serde(rename = "runnerScript")]
     pub script:                String,
     #[serde(rename = "canUseChannel")]
@@ -35,8 +35,8 @@ impl<'de> Deserialize<'de> for Runner {
         #[derive(Deserialize)]
         struct R {
             pub id:                    String,
-            #[serde(rename = "stopScript")]
-            pub stop_script:           String,
+            pub start:                 Option<String>,
+            pub stop:                  Option<String>,
             #[serde(rename = "runnerScript")]
             pub script:                String,
             #[serde(rename = "canUseChannel")]
@@ -48,9 +48,10 @@ impl<'de> Deserialize<'de> for Runner {
         }
 
         let R {
+            start,
             can_use_channel,
             can_use_serialization,
-            stop_script,
+            stop,
             script,
             id,
             required_fields,
@@ -65,11 +66,12 @@ impl<'de> Deserialize<'de> for Runner {
 
         Ok(Runner {
             id,
+            start,
             schema,
             required_fields,
             can_use_channel,
             can_use_serialization,
-            stop_script,
+            stop,
             script,
             location: None,
         })
