@@ -21,7 +21,7 @@ impl Command {
         let used_channels = super::get_used_channels(&content, &_channels);
 
         used_channels.for_each(|Channel { stop, location, .. }| {
-            super::add_add_subproc(stop, location, &mut procs)
+            super::add_add_subproc(stop, location.as_ref(), &mut procs)
         });
 
         let used_runners = runners.iter().filter(|runner| {
@@ -37,7 +37,7 @@ impl Command {
                  ref stop,
                  ..
              }| {
-                super::add_add_subproc(stop, location, &mut procs)
+                super::add_add_subproc(stop, location.as_ref(), &mut procs)
             },
         );
 

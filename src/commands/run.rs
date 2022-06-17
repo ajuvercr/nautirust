@@ -81,32 +81,25 @@ impl Command {
                 .find(|r| r.id == value.processor_config.runner_id)
                 .unwrap();
 
-            let mut command = shlex::split(&runner.script).unwrap();
+            let config_path = file
+                .canonicalize()
+                .expect("Couldn't canonicalize path :(")
+                .display()
+                .to_string();
+            let current_dir = env::current_dir()
+                .unwrap()
+                .canonicalize()
+                .expect("Couldn't canonicalize path :(")
+                .display()
+                .to_string();
 
-            command.iter_mut().for_each(|part| {
-                if part == "{config}" {
-                    *part = file
-                        .canonicalize()
-                        .expect("Couldn't canonicalize path :(")
-                        .display()
-                        .to_string()
-                }
+            let command = runner
+                .script
+                .clone()
+                .replace("{config}", &config_path)
+                .replace("{cwd}", &current_dir);
 
-                if part == "{cwd}" {
-                    *part = env::current_dir()
-                        .unwrap()
-                        .canonicalize()
-                        .expect("Couldn't canonicalize path :(")
-                        .display()
-                        .to_string()
-                }
-            });
-
-            println!("spawning {}", command.join(" "));
-            let proc = super::start_subproc_cmdvec(
-                runner.location.as_ref().unwrap(),
-                command,
-            );
+            let proc = super::start_subproc(command, runner.location.as_ref());
 
             procs.extend(proc);
         }

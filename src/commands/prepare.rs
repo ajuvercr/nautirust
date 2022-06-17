@@ -30,7 +30,7 @@ impl Command {
         let mut procs: Vec<Child> = Vec::new();
         let used_channels = super::get_used_channels(&content, &_channels);
         used_channels.for_each(|Channel { start, location, .. }| {
-            super::add_add_subproc(start, location, &mut procs)
+            super::add_add_subproc(start, location.as_ref(), &mut procs)
         });
 
         let used_runners = runners.iter().filter(|runner| {
@@ -47,7 +47,7 @@ impl Command {
                  ref start,
                  ..
              }| {
-                super::add_add_subproc(start, location, &mut procs)
+                super::add_add_subproc(start, location.as_ref(), &mut procs)
             },
         );
 

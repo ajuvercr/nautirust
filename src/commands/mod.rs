@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Child;
 
@@ -81,57 +80,29 @@ fn get_used_channels<'a>(
     channels.iter().filter(move |chan| is_present(&chan.id))
 }
 
-fn start_subproc<Str: AsRef<str>, S: AsRef<OsStr>>(
+fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     script: Str,
-    location: S,
-) -> Vec<std::process::Child> {
-    let command = shlex::split(script.as_ref()).unwrap();
+    location: Option<S>,
+) -> Option<std::process::Child> {
+    let location = location.and_then(expand_tilde);
 
-    start_subproc_cmdvec(expand_tilde(location.as_ref()).unwrap(), command)
-}
+    let mut proc = std::process::Command::new("sh");
+    proc.args(["-c", script.as_ref()]);
 
-fn start_subproc_cmdvec<S: AsRef<OsStr>>(
-    location: S,
-    command: Vec<String>,
-) -> Vec<std::process::Child> {
-    let location = Path::new(&location);
-
-    let grouped_command = command.iter().fold(Vec::new(), |mut acc, x| {
-        if x == "&&" || x == "||" {
-            acc.push(Vec::new());
-            return acc;
-        }
-        if acc.is_empty() {
-            acc.push(Vec::new());
-        }
-        acc.last_mut().unwrap().push(x);
-        acc
-    });
-
-    let mut proc_vec = Vec::new();
-
-    for cmd in grouped_command {
-        let prog = cmd[0];
-        let args = &cmd[1..];
-        let mut proc = std::process::Command::new(prog);
-
-        proc.args(args);
-
-        if location.exists() {
-            proc.current_dir(location);
-        }
-        proc_vec.push(proc.spawn().unwrap());
+    if let Some(location) = location {
+        proc.current_dir(location);
     }
 
-    proc_vec
+    proc.spawn().ok()
 }
 
-fn add_add_subproc<Str: AsRef<str>, S: AsRef<OsStr>>(
+
+fn add_add_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     script: &Option<Str>,
-    location: &Option<S>,
+    location: Option<S>,
     procs: &mut Vec<Child>,
 ) {
-    if let (Some(stop_script), Some(location)) = (script, location) {
+    if let Some(stop_script) = script {
         let proc = start_subproc(stop_script, location);
         procs.extend(proc);
     }
