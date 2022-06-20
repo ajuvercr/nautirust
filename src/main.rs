@@ -11,8 +11,6 @@ extern crate lazy_static;
 
 #[macro_use]
 extern crate serde_json;
-#[macro_use]
-extern crate text_io;
 extern crate async_std;
 
 use clap::{Parser, Subcommand};

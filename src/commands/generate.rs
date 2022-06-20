@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use async_std::fs;
+use dialoguer::console::Style;
+use dialoguer::theme::{ColorfulTheme};
+use dialoguer::{Completion, FuzzySelect, Input};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -53,12 +56,51 @@ fn extract_string_array<'a>(
         .into()
 }
 
+struct Complete;
+impl Completion for Complete {
+    fn get(&self, input: &str) -> Option<String> {
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(format!("compgen -f {}", input))
+            .output()
+            .expect("failed to execute compgen");
+        let out_str = String::from_utf8_lossy(&output.stdout);
+
+        let mut lines = out_str.lines();
+        let mut common = lines.next()?;
+
+        for line in lines {
+            let mut index = 0;
+
+            for (i, j) in line.chars().zip(common.chars()) {
+                if i != j {
+                    break;
+                }
+
+                index += 1;
+            }
+
+            common = &common[..index];
+        }
+
+        if common.len() == 0 {
+            None
+        } else {
+            Some(common.to_string())
+        }
+    }
+}
+
 impl Command {
     pub(crate) async fn execute<'a>(
         self,
         channels: Vec<Channel>,
         runners: Vec<Runner>,
     ) {
+        let chapter_style = Style::new().bold().bright();
+        let arg_style = Style::new().bright();
+        let type_style = Style::new().italic();
+
         let steps = step::parse_steps(&self.steps, &runners).await;
 
         let channels_per_runner: HashMap<String, &'_ Vec<String>> = runners
@@ -91,7 +133,7 @@ impl Command {
             let serialization_types =
                 serializations_per_runner.get(&step.runner_id).unwrap();
 
-            println!("Getting arguments for '{}'", step.id);
+            println!("Chapter: {}", chapter_style.apply_to(&step.id));
 
             for arg in &step.args {
                 match arg.ty.as_str() {
@@ -146,12 +188,22 @@ impl Command {
                     }
                     _ => {
                         let value = loop {
-                            println!("{}: type {}", arg.id, arg.ty);
+                            println!(
+                                "Argument: {} ({})",
+                                arg_style.apply_to(&arg.id),
+                                type_style.apply_to(&arg.ty)
+                            );
 
-                            let inp: String = read!("{}\n");
-                            println!();
-                            if let Ok(v) = serde_json::from_str(&inp) {
-                                break v;
+                            if let Ok(inp) = Input::<String>::new()
+                                .with_prompt(" ")
+                                .completion_with(&Complete)
+                                .interact_text()
+                            {
+                                if let Ok(v) = serde_json::from_str(&inp) {
+                                    break v;
+                                } else {
+                                    break Value::String(inp);
+                                }
                             }
                         };
                         step_args.add_argument(arg.id.to_string(), value);
@@ -310,23 +362,20 @@ fn ask_user_for<'a, T: std::fmt::Display>(
     things: &'a Vec<T>,
     allow_other: bool,
 ) -> usize {
-    println!("{}", name);
+    let theme = ColorfulTheme::default();
+    let mut item = FuzzySelect::with_theme(&theme);
 
-    things
-        .iter()
-        .enumerate()
-        .for_each(|(i, t)| println!("{}: {}", i, t));
+    item.items(things).with_prompt(name).default(0);
 
     if allow_other {
-        println!("{}: Other", things.len());
+        item.item("Other");
     }
 
-    let index: usize = read!("{}");
-    println!();
-
-    if index > things.len() || (!allow_other && index == things.len()) {
-        return ask_user_for(name, things, allow_other);
-    }
+    let index = loop {
+        if let Ok(output) = item.interact() {
+            break output;
+        }
+    };
 
     index
 }
