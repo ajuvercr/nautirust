@@ -11,6 +11,7 @@ extern crate lazy_static;
 
 #[macro_use]
 extern crate serde_json;
+#[macro_use]
 extern crate async_std;
 
 use clap::{Parser, Subcommand};
@@ -96,10 +97,9 @@ async fn load_cfg(args: Args) -> Result<(AppConfig, Command), Box<dyn Error>> {
     Ok((builder.build()?.try_deserialize()?, args.command))
 }
 
-#[async_std::main]
+#[main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let (config, command) = load_cfg(Args::parse()).await?;
-    println!("{:?}", config);
 
     let channels = channel::parse_channels(&config.channels).await;
     let runners = runner::parse_runners(&config.runners, &channels).await;

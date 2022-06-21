@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use async_std::fs;
 use dialoguer::console::Style;
-use dialoguer::theme::{ColorfulTheme};
+use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Completion, FuzzySelect, Input};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -19,6 +19,9 @@ pub struct Command {
 
     #[clap(short, long)]
     output: Option<String>,
+
+    #[clap(short, long)]
+    automatic: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -98,7 +101,7 @@ impl Command {
         runners: Vec<Runner>,
     ) {
         let chapter_style = Style::new().bold().bright();
-        let arg_style = Style::new().bright();
+        let arg_style = Style::new().underlined().bright();
         let type_style = Style::new().italic();
 
         let steps = step::parse_steps(&self.steps, &runners).await;
@@ -138,7 +141,10 @@ impl Command {
             for arg in &step.args {
                 match arg.ty.as_str() {
                     "streamReader" => {
-                        println!("Stream Reader '{}'", arg.id);
+                        println!(
+                            "Set up stream reader {}",
+                            arg_style.apply_to(&arg.id)
+                        );
                         let ids = extract_string_array(&arg.other, "sourceIds")
                             .unwrap_or_default();
 
@@ -152,6 +158,7 @@ impl Command {
                                 serialization_types,
                                 &mut open_channels,
                                 &mut channel_options,
+                                self.automatic,
                             )
                             .expect("no good thing found");
 
@@ -231,7 +238,9 @@ impl Command {
                 let (config, ty) = ask_user_for_channel(
                     &target.possible_channels,
                     &mut channel_options,
+                    self.automatic,
                 );
+
                 let ser =
                     ask_user_for_serialization(&target.possible_serializations);
 
@@ -283,12 +292,18 @@ fn create_valid_tmp_target_fn<'a>(
     }
 }
 
+fn get_if_only_one<T, I: Iterator<Item = T>>(mut iter: I) -> Option<T> {
+    iter.next()
+        .and_then(|v| if iter.next().is_some() { None } else { Some(v) })
+}
+
 fn ask_channel_config<'a>(
     id: &str,
     channel_types: &Vec<String>,
     ser_types: &Vec<String>,
     open_channels: &mut Vec<TmpTarget<'a>>,
     channel_options: &mut HashMap<String, Vec<Value>>,
+    automatic: bool,
 ) -> Option<(ChannelConfig, Option<TmpTarget<'a>>)> {
     let is_valid_tmp_target =
         create_valid_tmp_target_fn(channel_types, ser_types);
@@ -298,12 +313,32 @@ fn ask_channel_config<'a>(
         .filter(|&x| is_valid_tmp_target(x))
         .collect::<Vec<_>>();
 
-    let n = ask_user_for(
-        &format!("'{}' wants a channel, options:", id),
-        &options,
-        true,
-    );
+    // Collect indicies of options with the same name
+    let automatic_options =
+        options.iter().enumerate().flat_map(|(index, option)| {
+            if option.name == id {
+                Some(index)
+            } else {
+                None
+            }
+        });
 
+    let automatic_option = get_if_only_one(automatic_options);
+
+    let n = if let (true, Some(n)) = (automatic, automatic_option) {
+        let chapter_style = Style::new().bold().bright();
+        println!("Linking with {}", chapter_style.apply_to(&options[n]));
+        n
+    } else {
+        ask_user_for(
+            &format!("'{}' wants a channel, options:", id),
+            &options,
+            true,
+        )
+    };
+
+    // If a target is chosen (n < options.len()) then we need to determine the channel types and
+    // serialization that are both possible for the current processor and that target
     let (target, types, sers) = {
         if n >= options.len() {
             (None, channel_types.clone(), ser_types.clone())
@@ -328,7 +363,7 @@ fn ask_channel_config<'a>(
         }
     };
 
-    let (config, ty) = ask_user_for_channel(&types, channel_options);
+    let (config, ty) = ask_user_for_channel(&types, channel_options, automatic);
     let ser = ask_user_for_serialization(&sers);
 
     Some((
@@ -346,11 +381,19 @@ fn ask_user_for_serialization(options: &Vec<String>) -> String {
 fn ask_user_for_channel<'a>(
     types: &'a Vec<String>,
     channel_options: &mut HashMap<String, Vec<Value>>,
+    automatic: bool,
 ) -> (Value, &'a String) {
     let ty_index = ask_user_for("Choose channel type", &types, false);
     let ty = &types[ty_index];
 
     let options = channel_options.get_mut(ty).unwrap();
+
+    if automatic {
+        let out = options.remove(0);
+        let type_style = Style::new().italic();
+        println!("Chosen channel config: {}", type_style.apply_to(&out));
+        return (out, ty);
+    }
 
     let channel_index = ask_user_for("Choose channel config", options, false);
 
