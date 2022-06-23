@@ -12,11 +12,11 @@ use crate::runner::Runner;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProcConfig {
-    pub id:        String,
+    pub id: String,
     #[serde(rename = "runnerId")]
     pub runner_id: String,
     #[serde(flatten)]
-    other:         Value,
+    other: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,7 +36,7 @@ pub struct Values {
 /// Run the actual configs
 #[derive(clap::Args, Debug)]
 pub struct Command {
-    file:    String,
+    file: String,
     /// tmpdir to put temporary files
     #[clap(short, long)]
     tmp_dir: Option<String>,
@@ -81,17 +81,18 @@ impl Command {
                 .find(|r| r.id == value.processor_config.runner_id)
                 .unwrap();
 
-            let config_path = file
-                .canonicalize()
-                .expect("Couldn't canonicalize path :(")
-                .display()
-                .to_string();
-            let current_dir = env::current_dir()
-                .unwrap()
-                .canonicalize()
-                .expect("Couldn't canonicalize path :(")
-                .display()
-                .to_string();
+            let config_path = format!(
+                "'{}'",
+                file.canonicalize().expect("canonicalize path").display()
+            );
+            let current_dir = format!(
+                "'{}'",
+                env::current_dir()
+                    .unwrap()
+                    .canonicalize()
+                    .expect("canonicalize path")
+                    .display()
+            );
 
             let command = runner
                 .script
