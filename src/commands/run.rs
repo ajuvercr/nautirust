@@ -33,11 +33,12 @@ pub struct Values {
     pub values: Vec<RunThing>,
 }
 
-/// Run the actual configs
+/// Run a configured pipeline
 #[derive(clap::Args, Debug)]
 pub struct Command {
+    /// Config file
     file: String,
-    /// tmpdir to put temporary files
+    /// temporary directory to put step configuration files
     #[clap(short, long)]
     tmp_dir: Option<String>,
 }

@@ -1,24 +1,15 @@
 use std::process::Child;
 
 use async_std::fs::read_to_string;
-use serde::{Deserialize, Serialize};
-
 use crate::channel::Channel;
 use crate::runner::Runner;
 
 use super::run::Values;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct PrepareConfig {
-    id:       String,
-    #[serde(rename = "stopScript")]
-    script:   String,
-    location: String,
-}
-
-// Prepares the execution pipeline by starting the required channels/services defined in the config file
+/// Prepares the execution pipeline by starting the required channels/runner
 #[derive(clap::Args, Debug)]
 pub struct Command {
+    /// Config file
     file: String,
 }
 

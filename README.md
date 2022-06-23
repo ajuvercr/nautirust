@@ -4,28 +4,55 @@ An orchestrator for the connector architecture.
 This architecture defines processors that take input.
 Input can be many things, mostly configuration stuff, streamReaders and streamWriters.
 
-Readers and writers are connectors that use a channel to forward messages (currently all is json).
-What channel is used, usually doesn't really matter, the orchestrator asks the user what channel can be used.
+Readers and writers are connectors that use a channel to forward messages in some serialization (json, turtle, xml, plain).
+What channel is used, usually doesn't really matter, they all have the same interface. 
 
-Processors are executed with runners, the task of a runner is to start up or configure the content around the processor
-that the processor will use the specified connector.
+Nautirust is primariy used to configure pipelines that consist of steps.
+Each step corresponds to a processor and is configured with a step configuration file denoting the expected runner, runner specific arguments (source file, source function) and arguments to be configured.
+Nautirust configures the parameters used for the processors per step. To do this it mostly asks the user the actual _implementations_ of the arguments.
+Nautirust understands that readers and writers have to be linked up to function (the same channel configuration), this way it can guide the user in creating the correct pipeline.
+
+After configuring the steps of a pipeline a pipeline config is generated. This config contains all the actual arguments (including channel configuration).
+
+When Nautirust executes a configured pipeline, it executes a specific _runner_ for a specific step.
+For example, if a step consists of a JS function, then a JSRunner is used to actually execute this function.
+Ideally the runner starts up the channel and provides the step with a instance of a reader or writer and the configured arguments.
 
 ## Usage
 
-Generate a plan:
+Example step file (for more details see later)
+```json
+{
+  "id": "helloWorld",
+  "runnerId": "JsRunner",
+  "config": {
+    "jsFile": "main.js",
+    "methodName": "sayHello"
+  },
+  "args": [
+    {
+      "id": "to",
+      "type": "string"
+    }
+  ]
+}
+```
+
+Generate a plan and save it to plan.json:
 ```
 cargo run -- generate -o plan.json [...steps]
 ```
+
 
 Execute the plan:
 ```
 cargo run -- run plan.json
 ```
 
+
 ## Configuration
 
 Channels and runners have to be defined, this can be done with command line arguments or a config file.
-
 ```toml
 channels = "configs/channels/*.json"
 runners = "configs/runners/*/runner.json"
@@ -62,7 +89,6 @@ Example runner configuration:
   {
     "id": "JsRunner",
     "runnerScript": "node ./lib/index.js {config} {cwd}",
-    "stopScript": "...", 
     "canUseChannel": [
       "file", "ws"
     ],
@@ -75,10 +101,9 @@ Example runner configuration:
 
 Here a runner called JsRunner is defined. Required fields are
 - `runnerScript`: how is the runner started
-- `stopScript`: how the runner is stopped
 - `canUseChannel`: what channels can this runner provide to the processor
 
-Runners can also be configured by a step. Here it requires a `jsFile` and a `methodName`.
+When a runner is configured in a step `jsFile` and `methodName` have to be provided.
 
 
 ### Step configuration

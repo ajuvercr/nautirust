@@ -9,6 +9,7 @@ use crate::runner::Runner;
 /// Gracefully stop the runners and channels specified in the config
 #[derive(clap::Args, Debug)]
 pub struct Command {
+    /// Config file
     file: String,
 }
 

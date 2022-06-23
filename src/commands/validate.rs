@@ -1,7 +1,7 @@
 use crate::channel::Channel;
 use crate::runner::Runner;
 
-/// Validate configs for runners and channels
+/// Validate configureations for runners and channels
 #[derive(clap::Args, Debug)]
 pub struct Command {}
 impl Command {

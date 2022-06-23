@@ -12,14 +12,17 @@ use crate::channel::{Channel, ChannelConfig};
 use crate::runner::Runner;
 use crate::step::{self, Step, StepArguments};
 
-/// Generate json that is ready to execute
+/// Generate a pipeline of steps
 #[derive(clap::Args, Debug)]
 pub struct Command {
+    /// Steps to include in the pipeline (ordered)
     steps: Vec<String>,
 
+    /// Output location of the generated pipeline file
     #[clap(short, long)]
     output: Option<String>,
 
+    /// Try infer basic configurations details
     #[clap(short, long)]
     automatic: bool,
 }
@@ -28,15 +31,15 @@ pub struct Command {
 pub struct RunConfig {
     #[serde(rename = "processorConfig")]
     processor: Step,
-    args:      HashMap<String, Value>,
+    args: HashMap<String, Value>,
 }
 
 #[derive(Debug)]
 struct TmpTarget<'a> {
-    step_id:                 &'a str,
-    writer_id:               &'a str,
-    name:                    &'a str,
-    possible_channels:       &'a Vec<String>,
+    step_id: &'a str,
+    writer_id: &'a str,
+    name: &'a str,
+    possible_channels: &'a Vec<String>,
     possible_serializations: &'a Vec<String>,
 }
 
@@ -86,7 +89,7 @@ impl Completion for Complete {
             common = &common[..index];
         }
 
-        if common.len() == 0 {
+        if common.is_empty() {
             None
         } else {
             Some(common.to_string())
@@ -184,10 +187,10 @@ impl Command {
 
                         for id in ids {
                             let target = TmpTarget {
-                                name:                    id,
-                                writer_id:               &arg.id,
-                                step_id:                 &step.id,
-                                possible_channels:       channel_types,
+                                name: id,
+                                writer_id: &arg.id,
+                                step_id: &step.id,
+                                possible_channels: channel_types,
                                 possible_serializations: serialization_types,
                             };
                             open_channels.push(target);
@@ -218,8 +221,9 @@ impl Command {
                 }
             }
 
-            if let Some(_) =
-                all_step_args.insert(step.id.to_string(), step_args)
+            if all_step_args
+                .insert(step.id.to_string(), step_args)
+                .is_some()
             {
                 panic!("Found multiple steps with the same id '{}'", step.id);
             }
@@ -236,13 +240,13 @@ impl Command {
                 );
 
                 let (config, ty) = ask_user_for_channel(
-                    &target.possible_channels,
+                    target.possible_channels,
                     &mut channel_options,
                     self.automatic,
                 );
 
                 let ser =
-                    ask_user_for_serialization(&target.possible_serializations);
+                    ask_user_for_serialization(target.possible_serializations);
 
                 let ch_config = ChannelConfig::new(
                     target.name.to_string(),
@@ -278,8 +282,8 @@ impl Command {
 }
 
 fn create_valid_tmp_target_fn<'a>(
-    channel_types: &'a Vec<String>,
-    ser_types: &'a Vec<String>,
+    channel_types: &'a [String],
+    ser_types: &'a [String],
 ) -> impl for<'r, 's> Fn(&'r TmpTarget<'s>) -> bool + 'a {
     |ch: &TmpTarget| {
         ch.possible_channels
@@ -299,8 +303,8 @@ fn get_if_only_one<T, I: Iterator<Item = T>>(mut iter: I) -> Option<T> {
 
 fn ask_channel_config<'a>(
     id: &str,
-    channel_types: &Vec<String>,
-    ser_types: &Vec<String>,
+    channel_types: &[String],
+    ser_types: &[String],
     open_channels: &mut Vec<TmpTarget<'a>>,
     channel_options: &mut HashMap<String, Vec<Value>>,
     automatic: bool,
@@ -341,7 +345,7 @@ fn ask_channel_config<'a>(
     // serialization that are both possible for the current processor and that target
     let (target, types, sers) = {
         if n >= options.len() {
-            (None, channel_types.clone(), ser_types.clone())
+            (None, channel_types.to_owned(), ser_types.to_owned())
         } else {
             let target = open_channels.remove(n);
 
@@ -372,18 +376,18 @@ fn ask_channel_config<'a>(
     ))
 }
 
-fn ask_user_for_serialization(options: &Vec<String>) -> String {
-    let ser_index = ask_user_for("What serialization?", &options, false);
+fn ask_user_for_serialization(options: &[String]) -> String {
+    let ser_index = ask_user_for("What serialization?", options, false);
 
     options[ser_index].to_string()
 }
 
 fn ask_user_for_channel<'a>(
-    types: &'a Vec<String>,
+    types: &'a [String],
     channel_options: &mut HashMap<String, Vec<Value>>,
     automatic: bool,
 ) -> (Value, &'a String) {
-    let ty_index = ask_user_for("Choose channel type", &types, false);
+    let ty_index = ask_user_for("Choose channel type", types, false);
     let ty = &types[ty_index];
 
     let options = channel_options.get_mut(ty).unwrap();
@@ -400,9 +404,9 @@ fn ask_user_for_channel<'a>(
     (options.remove(channel_index), ty)
 }
 
-fn ask_user_for<'a, T: std::fmt::Display>(
+fn ask_user_for<T: std::fmt::Display>(
     name: &str,
-    things: &'a Vec<T>,
+    things: &'_ [T],
     allow_other: bool,
 ) -> usize {
     let theme = ColorfulTheme::default();
@@ -414,11 +418,9 @@ fn ask_user_for<'a, T: std::fmt::Display>(
         item.item("Other");
     }
 
-    let index = loop {
+    loop {
         if let Ok(output) = item.interact() {
             break output;
         }
-    };
-
-    index
+    }
 }
