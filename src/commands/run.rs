@@ -12,11 +12,11 @@ use crate::runner::Runner;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProcConfig {
-    pub id: String,
+    pub id:        String,
     #[serde(rename = "runnerId")]
     pub runner_id: String,
     #[serde(flatten)]
-    other: Value,
+    other:         Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -37,7 +37,7 @@ pub struct Values {
 #[derive(clap::Args, Debug)]
 pub struct Command {
     /// Config file
-    file: String,
+    file:    String,
     /// temporary directory to put step configuration files
     #[clap(short, long)]
     tmp_dir: Option<String>,

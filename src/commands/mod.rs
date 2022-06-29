@@ -96,7 +96,6 @@ fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     proc.spawn().ok()
 }
 
-
 fn add_add_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     script: &Option<Str>,
     location: Option<S>,

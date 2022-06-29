@@ -31,15 +31,15 @@ pub struct Command {
 pub struct RunConfig {
     #[serde(rename = "processorConfig")]
     processor: Step,
-    args: HashMap<String, Value>,
+    args:      HashMap<String, Value>,
 }
 
 #[derive(Debug)]
 struct TmpTarget<'a> {
-    step_id: &'a str,
-    writer_id: &'a str,
-    name: &'a str,
-    possible_channels: &'a Vec<String>,
+    step_id:                 &'a str,
+    writer_id:               &'a str,
+    name:                    &'a str,
+    possible_channels:       &'a Vec<String>,
     possible_serializations: &'a Vec<String>,
 }
 
@@ -187,10 +187,10 @@ impl Command {
 
                         for id in ids {
                             let target = TmpTarget {
-                                name: id,
-                                writer_id: &arg.id,
-                                step_id: &step.id,
-                                possible_channels: channel_types,
+                                name:                    id,
+                                writer_id:               &arg.id,
+                                step_id:                 &step.id,
+                                possible_channels:       channel_types,
                                 possible_serializations: serialization_types,
                             };
                             open_channels.push(target);

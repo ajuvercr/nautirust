@@ -1,10 +1,10 @@
 use std::process::Child;
 
 use async_std::fs::read_to_string;
-use crate::channel::Channel;
-use crate::runner::Runner;
 
 use super::run::Values;
+use crate::channel::Channel;
+use crate::runner::Runner;
 
 /// Prepares the execution pipeline by starting the required channels/runner
 #[derive(clap::Args, Debug)]
@@ -20,9 +20,13 @@ impl Command {
 
         let mut procs: Vec<Child> = Vec::new();
         let used_channels = super::get_used_channels(&content, &_channels);
-        used_channels.for_each(|Channel { start, location, .. }| {
-            super::add_add_subproc(start, location.as_ref(), &mut procs)
-        });
+        used_channels.for_each(
+            |Channel {
+                 start, location, ..
+             }| {
+                super::add_add_subproc(start, location.as_ref(), &mut procs)
+            },
+        );
 
         let used_runners = runners.iter().filter(|runner| {
             values
@@ -30,7 +34,6 @@ impl Command {
                 .iter()
                 .any(|v| v.processor_config.runner_id == runner.id)
         });
-
 
         used_runners.for_each(
             |Runner {

@@ -12,12 +12,13 @@ pub struct Channel {
     pub id:              String,
     #[serde(rename = "requiredFields")]
     pub required_fields: Vec<String>,
-    pub location:        Option<String>,
     pub start:           Option<String>,
     pub stop:            Option<String>,
     pub options:         Vec<Value>,
     #[serde(skip_serializing)]
     pub schema:          JSONSchema,
+    #[serde(skip_serializing)]
+    pub location:        Option<PathBuf>,
 }
 
 impl<'de> Deserialize<'de> for Channel {
@@ -28,7 +29,6 @@ impl<'de> Deserialize<'de> for Channel {
         #[derive(Deserialize)]
         struct Ch {
             id:              String,
-            location:        Option<String>,
             start:           Option<String>,
             stop:            Option<String>,
             #[serde(rename = "requiredFields")]
@@ -38,7 +38,6 @@ impl<'de> Deserialize<'de> for Channel {
         let Ch {
             required_fields,
             id,
-            location,
             start,
             stop,
             options,
@@ -64,7 +63,7 @@ impl<'de> Deserialize<'de> for Channel {
             id,
             start,
             stop,
-            location,
+            location: None,
             options,
             schema,
             required_fields,
@@ -90,8 +89,9 @@ pub async fn parse_channels(path: &str) -> Vec<Channel> {
 }
 
 pub async fn parse_channel(path: PathBuf) -> Result<Channel, Box<dyn Error>> {
-    let file = read_to_string(path).await?;
-    let channel: Channel = serde_json::from_str(&file)?;
+    let file = read_to_string(&path).await?;
+    let mut channel: Channel = serde_json::from_str(&file)?;
+    channel.location = path.parent().map(|x| x.into());
     Ok(channel)
 }
 
