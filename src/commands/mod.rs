@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::process::Child;
+use std::process::{Child, Stdio};
 
 use clap::Subcommand;
 use jsonpath_rust::JsonPathQuery;
@@ -8,6 +8,7 @@ use serde_json::Value;
 use crate::channel::Channel;
 use crate::runner::Runner;
 
+pub mod docker;
 pub mod generate;
 pub mod prepare;
 pub mod run;
@@ -18,6 +19,7 @@ pub mod validate;
 pub enum Command {
     Generate(generate::Command),
     Run(run::Command),
+    Docker(docker::Command),
     Prepare(prepare::Command),
     Validate(validate::Command),
     Stop(stop::Command),
@@ -28,6 +30,7 @@ impl Command {
         match self {
             Command::Generate(gen) => gen.execute(channels, runners).await,
             Command::Run(run) => run.execute(channels, runners).await,
+            Command::Docker(docker) => docker.execute(channels, runners).await,
             Command::Validate(validate) => {
                 validate.execute(channels, runners).await
             }
@@ -87,6 +90,7 @@ fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     let location = location.and_then(expand_tilde);
 
     let mut proc = std::process::Command::new("sh");
+    proc.stdout(Stdio::piped());
     proc.args(["-c", script.as_ref()]);
 
     if let Some(location) = location {

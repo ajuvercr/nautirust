@@ -13,6 +13,7 @@ pub struct Channel {
     #[serde(rename = "requiredFields")]
     pub required_fields: Vec<String>,
     pub start:           Option<String>,
+    pub docker:          Option<String>,
     pub stop:            Option<String>,
     pub options:         Vec<Value>,
     #[serde(skip_serializing)]
@@ -30,6 +31,7 @@ impl<'de> Deserialize<'de> for Channel {
         struct Ch {
             id:              String,
             start:           Option<String>,
+            pub docker:      Option<String>,
             stop:            Option<String>,
             #[serde(rename = "requiredFields")]
             required_fields: Vec<String>,
@@ -39,6 +41,7 @@ impl<'de> Deserialize<'de> for Channel {
             required_fields,
             id,
             start,
+            docker,
             stop,
             options,
         } = <Ch as Deserialize>::deserialize(deserializer)?;
@@ -64,6 +67,7 @@ impl<'de> Deserialize<'de> for Channel {
             start,
             stop,
             location: None,
+            docker,
             options,
             schema,
             required_fields,

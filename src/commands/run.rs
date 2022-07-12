@@ -8,29 +8,23 @@ use serde_json::Value;
 use tempdir::TempDir;
 
 use crate::channel::Channel;
+use crate::commands::generate::Args;
 use crate::runner::Runner;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ProcConfig {
-    pub id:        String,
-    #[serde(rename = "runnerId")]
-    pub runner_id: String,
-    #[serde(flatten)]
-    other:         Value,
-}
+use crate::step::Step;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RunThing {
     #[serde(rename = "processorConfig")]
-    pub processor_config: ProcConfig,
-
+    pub processor_config: Step,
+    args:                 Args,
     #[serde(flatten)]
-    other: Value,
+    rest:                 Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Values {
-    pub values: Vec<RunThing>,
+pub struct Steps {
+    #[serde(rename = "values")]
+    pub steps: Vec<RunThing>,
 }
 
 /// Run a configured pipeline
@@ -67,11 +61,11 @@ impl Command {
             });
 
         let content = read_to_string(self.file).await.unwrap();
-        let values: Values = serde_json::from_str(&content).unwrap();
+        let values: Steps = serde_json::from_str(&content).unwrap();
 
         let mut procs: Vec<Child> = Vec::new();
 
-        for value in values.values {
+        for value in values.steps {
             let file = path.join(format!("{}.json", value.processor_config.id));
             let config = serde_json::to_vec_pretty(&value).unwrap();
 

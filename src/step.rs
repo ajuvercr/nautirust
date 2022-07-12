@@ -25,6 +25,7 @@ pub struct Step {
     #[serde(rename = "runnerId")]
     pub runner_id: String,
     pub config:    Value,
+    pub build:     Option<String>,
     pub args:      Vec<StepArg>,
     pub location:  Option<String>,
 }
@@ -36,25 +37,23 @@ fn config_is_valid(schema: &JSONSchema, config: &Value) -> bool {
         });
         return false;
     }
-    return true;
+
+    true
 }
 
-pub async fn parse_steps<'a, S, I>(
-    paths: I,
-    runners: &'a Vec<Runner>,
-) -> Vec<Step>
+pub async fn parse_steps<'a, S, I>(paths: I, runners: &'a [Runner]) -> Vec<Step>
 where
     S: AsRef<Path> + 'a,
     I: IntoIterator<Item = &'a S>,
 {
     let mut steps = Vec::new();
-    let mut iterator = paths.into_iter().map(parse_step);
+    let iterator = paths.into_iter().map(parse_step);
 
-    while let Some(item) = iterator.next() {
+    for item in iterator {
         match item.await {
             Ok(step) => {
                 if let Some(runner) =
-                    runners.iter().find(|runner| &runner.id == &step.runner_id)
+                    runners.iter().find(|runner| runner.id == step.runner_id)
                 {
                     if config_is_valid(&runner.schema, &step.config) {
                         steps.push(step);
@@ -70,8 +69,8 @@ where
     steps
 }
 
-pub async fn parse_step<'a, S: AsRef<Path>>(
-    path: &'a S,
+pub async fn parse_step<S: AsRef<Path>>(
+    path: &'_ S,
 ) -> Result<Step, Box<dyn Error>> {
     let p = path.as_ref();
     let loc = p

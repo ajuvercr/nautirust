@@ -2,7 +2,7 @@ use std::process::Child;
 
 use async_std::fs::read_to_string;
 
-use super::run::Values;
+use super::run::Steps;
 use crate::channel::Channel;
 use crate::runner::Runner;
 
@@ -16,7 +16,7 @@ pub struct Command {
 impl Command {
     pub async fn execute(self, _channels: Vec<Channel>, runners: Vec<Runner>) {
         let content = read_to_string(self.file).await.unwrap();
-        let values: Values = serde_json::from_str(&content).unwrap();
+        let values: Steps = serde_json::from_str(&content).unwrap();
 
         let mut procs: Vec<Child> = Vec::new();
         let used_channels = super::get_used_channels(&content, &_channels);
@@ -27,7 +27,7 @@ impl Command {
 
         let used_runners = runners.iter().filter(|runner| {
             values
-                .values
+                .steps
                 .iter()
                 .any(|v| v.processor_config.runner_id == runner.id)
         });

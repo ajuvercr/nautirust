@@ -21,7 +21,7 @@ mod commands;
 mod runner;
 mod step;
 
-const TOML_LOCATION: &'static str = "orchestrator.toml";
+const TOML_LOCATION: &str = "orchestrator.toml";
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -58,7 +58,6 @@ enum Commands {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct AppConfig {
-    tmp_dir:  String,
     /// Glob to indicate channel locations
     channels: String,
     /// Glob to indicate runner locations
@@ -74,13 +73,12 @@ async fn load_cfg(args: Args) -> Result<(AppConfig, Command), Box<dyn Error>> {
     // First set some default value
     let mut builder = ConfigBuilder::<DefaultState>::default()
         .set_default("channels", "channels")?
-        .set_default("tmp_dir", "tmp")?
         .set_default("runners", "runners")?;
 
     // Try to override with config things
     for toml in &tomls {
         if Path::new(&toml).exists().await {
-            builder = builder.add_source(config::File::with_name(&toml));
+            builder = builder.add_source(config::File::with_name(toml));
         } else {
             eprintln!("config file not found '{}'", toml);
         }

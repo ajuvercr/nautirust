@@ -27,11 +27,12 @@ pub struct Command {
     automatic: bool,
 }
 
+pub type Args = HashMap<String, Value>;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RunConfig {
     #[serde(rename = "processorConfig")]
     processor: Step,
-    args:      HashMap<String, Value>,
+    args:      Args,
 }
 
 #[derive(Debug)]

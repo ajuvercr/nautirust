@@ -12,6 +12,7 @@ use crate::channel::Channel;
 pub struct Runner {
     pub id:                    String,
     pub start:                 Option<String>,
+    pub docker:                Option<String>,
     pub stop:                  Option<String>,
     #[serde(rename = "runnerScript")]
     pub script:                String,
@@ -35,6 +36,7 @@ impl<'de> Deserialize<'de> for Runner {
         #[derive(Deserialize)]
         struct R {
             pub id:                    String,
+            pub docker:                Option<String>,
             pub start:                 Option<String>,
             pub stop:                  Option<String>,
             #[serde(rename = "runnerScript")]
@@ -51,6 +53,7 @@ impl<'de> Deserialize<'de> for Runner {
             start,
             can_use_channel,
             can_use_serialization,
+            docker,
             stop,
             script,
             id,
@@ -69,6 +72,7 @@ impl<'de> Deserialize<'de> for Runner {
             start,
             schema,
             required_fields,
+            docker,
             can_use_channel,
             can_use_serialization,
             stop,
@@ -78,16 +82,16 @@ impl<'de> Deserialize<'de> for Runner {
     }
 }
 
-pub async fn parse_runners(path: &str, channels: &Vec<Channel>) -> Vec<Runner> {
+pub async fn parse_runners(path: &str, channels: &[Channel]) -> Vec<Runner> {
     let mut runners = Vec::new();
-    let mut iterator = glob(path)
+    let iterator = glob(path)
         .expect("Failed to read channels glob pattern")
         .flatten()
         .map(parse_runner);
 
-    let channel_exists = |id: &str| channels.iter().any(|c| &c.id == id);
+    let channel_exists = |id: &str| channels.iter().any(|c| c.id == id);
 
-    while let Some(item) = iterator.next() {
+    for item in iterator {
         match item.await {
             Ok(runner) => {
                 if runner.can_use_channel.iter().fold(
