@@ -1,14 +1,12 @@
 # Nautirust
 
-Nautirust is a cli-utility program designed to assist the user in configuring and starting a pipeline of processes (called steps).
-Nautirust does not restrict on programming language or startup sequence.
+Nautirust is a command-line program that helps configuring, and is able to start, a data processing pipeline of processes (called steps).
+It does not restrict on programming language or start-up sequence.
 
-## Intro
+Nautirust consists of 3 concepts: 1. a step, 2. a runner and 3. a channel. A pipeline is a sequence of steps.
 
-Nautirust consists of three concepts, a step, a runner and a channel. A pipeline is a sequence of steps.
-
-Runners are designed to start a step and can require steps to define some additional properties. 
-For example a runner that executes a step written in javascript requires the location of the main source file and the name of the function that should be executed.
+Runners are designed to start a step and can require steps to define a configuration. 
+For example a runner that executes a step written in javascript requires the location of the main source file and the name of the function that will be executed.
 
 Each step is programming language independent, but has to specify what runner must be used to start the step. 
 A step also specifies what arguments should be provided to that step, including the type.
@@ -18,7 +16,6 @@ Readers and writers connect two processes together with _a_ channel. Nautirust h
 
 The goal of the runner is not only to start up a step, but also to abstract away the underlying channel. This eases the implementation of steps.
 Runners specify what channels they support. Not all runners can support all channels, nautirust uses this information to only suggest plausible channels.
-
 
 ## Usage
 
@@ -45,12 +42,10 @@ Generate a plan and save it to plan.json:
 nautirust generate -o plan.json [...steps]
 ```
 
-
 Execute the plan:
 ```
 nautirust run plan.json
 ```
-
 
 ## Configuration
 
