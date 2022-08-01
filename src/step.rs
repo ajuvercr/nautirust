@@ -12,11 +12,23 @@ use crate::runner::Runner;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StepArg {
-    pub id:    String,
+    pub id:      String,
     #[serde(rename = "type")]
-    pub ty:    String,
+    pub ty:      String,
     #[serde(flatten)]
-    pub other: Map<String, Value>,
+    pub other:   Map<String, Value>,
+    #[serde(default = "default_bool")]
+    pub default: bool,
+    #[serde(default = "default_string")]
+    pub value:   String,
+}
+
+fn default_string() -> String{
+    String::default()
+}
+
+fn default_bool() -> bool{
+    false
 }
 
 #[derive(Serialize, Deserialize, Debug)]
