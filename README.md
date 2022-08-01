@@ -122,6 +122,18 @@ Example step configuration:
       "type": "any"
     },
     {
+      "id": "a_default_value",
+      "type": "string",
+      "default": true,
+      "value": "test"
+    },
+    {
+      "id": "a_suggested_value",
+      "type": "string",
+      "default": false,
+      "value": "test2"
+    },
+    {
       "id": "writer",
       "type": "streamWriter",
       "targetIds": [
@@ -134,6 +146,7 @@ Example step configuration:
 
 A step is a processor. The processor specifies that it can be executed with the `JsRunner` runner.
 It also specifies what arguments have to be defined before being able to execute.
+Default arguments are also possible, see `a_default_value`. However if default is `false` and a value is still given, it will be suggested to the user instead.
 
 
 ## Functionality
