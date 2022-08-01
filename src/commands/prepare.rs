@@ -1,4 +1,3 @@
-use std::process::Child;
 
 use async_std::fs::read_to_string;
 
@@ -19,13 +18,16 @@ impl Command {
         let content = read_to_string(self.file).await.unwrap();
         let values: Steps = serde_json::from_str(&content).unwrap();
 
-        let mut procs: Vec<Child> = Vec::new();
+        let mut procs = Vec::new();
         let used_channels = super::get_used_channels(&content, &channels);
         used_channels.for_each(
             |Channel {
-                 start, location, ..
+                 start,
+                 location,
+                 id,
+                 ..
              }| {
-                super::add_add_subproc(start, location.as_ref(), &mut procs)
+                super::add_add_subproc(start, location.as_ref(), &mut procs, id, false)
             },
         );
 
@@ -40,9 +42,16 @@ impl Command {
             |Runner {
                  ref location,
                  ref start,
+                 id,
                  ..
              }| {
-                super::add_add_subproc(start, location.as_ref(), &mut procs)
+                super::add_add_subproc(
+                    start,
+                    location.as_ref(),
+                    &mut procs,
+                    id,
+                    false,
+                )
             },
         );
 
@@ -50,17 +59,29 @@ impl Command {
             |RunThing {
                  processor_config:
                      Step {
-                         build, location, ..
+                         build,
+                         location,
+                         id,
+                         ..
                      },
                  ..
              }| {
-                super::add_add_subproc(build, location.as_ref(), &mut procs);
+                super::add_add_subproc(
+                    build,
+                    location.as_ref(),
+                    &mut procs,
+                    id,
+                    false,
+                );
             },
         );
 
         // Stops the processors in the reverse order
         while !procs.is_empty() {
-            procs.pop().unwrap().wait().unwrap();
+            let (mut proc, h1, h2) = procs.pop().unwrap();
+            proc.wait().unwrap();
+            h1.join().unwrap();
+            h2.join().unwrap();
         }
     }
 }

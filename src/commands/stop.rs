@@ -1,5 +1,3 @@
-use std::process::Child;
-
 use async_std::fs::read_to_string;
 
 use super::run::Steps;
@@ -18,12 +16,22 @@ impl Command {
         let content = read_to_string(self.file).await.unwrap();
         let values: Steps = serde_json::from_str(&content).unwrap();
 
-        let mut procs: Vec<Child> = Vec::new();
+        let mut procs = Vec::new();
         let used_channels = super::get_used_channels(&content, &_channels);
 
-        used_channels.for_each(|Channel { stop, location, .. }| {
-            super::add_add_subproc(stop, location.as_ref(), &mut procs)
-        });
+        used_channels.for_each(
+            |Channel {
+                 stop, location, id, ..
+             }| {
+                super::add_add_subproc(
+                    stop,
+                    location.as_ref(),
+                    &mut procs,
+                    id,
+                    false,
+                )
+            },
+        );
 
         let used_runners = runners.iter().filter(|runner| {
             values
@@ -36,15 +44,25 @@ impl Command {
             |Runner {
                  ref location,
                  ref stop,
+                 id,
                  ..
              }| {
-                super::add_add_subproc(stop, location.as_ref(), &mut procs)
+                super::add_add_subproc(
+                    stop,
+                    location.as_ref(),
+                    &mut procs,
+                    id,
+                    false,
+                )
             },
         );
 
         // Stops the processors in the reverse order
         while !procs.is_empty() {
-            procs.pop().unwrap().wait().unwrap();
+            let (mut proc, h1, h2) = procs.pop().unwrap();
+            proc.wait().unwrap();
+            h1.join().unwrap();
+            h2.join().unwrap();
         }
     }
 }

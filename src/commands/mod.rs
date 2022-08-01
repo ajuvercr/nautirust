@@ -1,5 +1,7 @@
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Stdio};
+use std::thread::{spawn, JoinHandle};
 
 use clap::Subcommand;
 use jsonpath_rust::JsonPathQuery;
@@ -86,27 +88,60 @@ fn get_used_channels<'a>(
 fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     script: Str,
     location: Option<S>,
-) -> Option<std::process::Child> {
+    name: &str,
+    output: bool,
+) -> Option<(std::process::Child, JoinHandle<String>, JoinHandle<()>)> {
     let location = location.and_then(expand_tilde);
 
     let mut proc = std::process::Command::new("sh");
     proc.stdout(Stdio::piped());
+    proc.stderr(Stdio::piped());
     proc.args(["-c", script.as_ref()]);
 
     if let Some(location) = location {
         proc.current_dir(location);
     }
 
-    proc.spawn().ok()
+    let mut child = proc.spawn().ok()?;
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+
+    let id1 = name.to_string();
+    let h1 = spawn(move || {
+        let mut lines = Vec::new();
+        BufReader::new(stdout).lines().for_each(|line| {
+            let line = line.unwrap_or_else(|_| String::from("error"));
+            println!("\x1b[32mINFO\x1b[39m {}: {}", id1, line);
+            if output {
+                lines.push(line);
+            }
+        });
+        lines.into_iter().collect()
+    });
+
+    let id2 = name.to_string();
+    let h2 = spawn(move || {
+        BufReader::new(stderr).lines().for_each(|line| {
+            println!(
+                "\x1b[31mERRO\x1b[39m {}: {}",
+                id2,
+                line.unwrap_or_else(|_| String::from("error"))
+            )
+        });
+    });
+
+    Some((child, h1, h2))
 }
 
 fn add_add_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     script: &Option<Str>,
     location: Option<S>,
-    procs: &mut Vec<Child>,
+    procs: &mut Vec<(Child, JoinHandle<String>, JoinHandle<()>)>,
+    id: &str,
+    output: bool,
 ) {
     if let Some(stop_script) = script {
-        let proc = start_subproc(stop_script, location);
+        let proc = start_subproc(stop_script, location, id, output);
         procs.extend(proc);
     }
 }

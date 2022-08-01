@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::env;
 use std::path::Path;
-use std::process::Child;
 
 use async_std::fs::{self, read_to_string, write};
 use tempdir::TempDir;
@@ -14,9 +13,9 @@ use crate::runner::Runner;
 #[derive(clap::Args, Debug)]
 pub struct Command {
     /// Config file
-    file:    String,
+    file: String,
     #[clap(short, long)]
-    output:  bool,
+    output: bool,
     /// temporary directory to put step configuration files
     #[clap(short, long)]
     tmp_dir: Option<String>,
@@ -66,14 +65,23 @@ impl Command {
             return;
         }
 
-        let mut procs: Vec<Child> = Vec::new();
+        let mut procs = Vec::new();
 
         let used_channels = super::get_used_channels(&content, &channels);
         used_channels.for_each(
             |Channel {
-                 docker, location, ..
+                 docker,
+                 location,
+                 id,
+                 ..
              }| {
-                super::add_add_subproc(docker, location.as_ref(), &mut procs)
+                super::add_add_subproc(
+                    docker,
+                    location.as_ref(),
+                    &mut procs,
+                    id,
+                    true,
+                )
             },
         );
 
@@ -109,6 +117,8 @@ impl Command {
                 &script.into(),
                 runner.location.as_ref(),
                 &mut procs,
+                &value.processor_config.id,
+                true,
             );
         }
 
@@ -118,10 +128,12 @@ impl Command {
             .chain(
                 procs
                     .into_iter()
-                    .map(|p| p.wait_with_output().expect("finish process"))
-                    .map(|output| {
-                        String::from_utf8(output.stdout).expect("invalid utf-8")
-                    }),
+                    .map(|(mut proc, h1, h2)| {
+                        proc.wait().unwrap();
+                        let output = h1.join().unwrap();
+                        h2.join().unwrap();
+                        output
+                    })
             )
             .collect();
 

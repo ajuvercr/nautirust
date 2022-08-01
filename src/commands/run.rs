@@ -1,6 +1,5 @@
 use std::env;
 use std::path::Path;
-use std::process::Child;
 
 use async_std::fs::{self, read_to_string, write};
 use serde::{Deserialize, Serialize};
@@ -16,9 +15,9 @@ use crate::step::Step;
 pub struct RunThing {
     #[serde(rename = "processorConfig")]
     pub processor_config: Step,
-    args:                 Args,
+    args: Args,
     #[serde(flatten)]
-    rest:                 Value,
+    rest: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -31,7 +30,7 @@ pub struct Steps {
 #[derive(clap::Args, Debug)]
 pub struct Command {
     /// Config file
-    file:    String,
+    file: String,
     /// temporary directory to put step configuration files
     #[clap(short, long)]
     tmp_dir: Option<String>,
@@ -63,7 +62,7 @@ impl Command {
         let content = read_to_string(self.file).await.unwrap();
         let values: Steps = serde_json::from_str(&content).unwrap();
 
-        let mut procs: Vec<Child> = Vec::new();
+        let mut procs = Vec::new();
 
         for value in values.steps {
             let file = path.join(format!("{}.json", value.processor_config.id));
@@ -95,13 +94,20 @@ impl Command {
                 .replace("{config}", &config_path)
                 .replace("{cwd}", &current_dir);
 
-            let proc = super::start_subproc(command, runner.location.as_ref());
+            let proc = super::start_subproc(
+                command,
+                runner.location.as_ref(),
+                &value.processor_config.id,
+                false,
+            );
 
             procs.extend(proc);
         }
 
-        for mut proc in procs {
+        for (mut proc, h1, h2) in procs {
             proc.wait().unwrap();
+            h1.join().unwrap();
+            h2.join().unwrap();
         }
     }
 }
