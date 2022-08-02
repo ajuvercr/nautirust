@@ -21,7 +21,7 @@ pub struct StepArg {
     pub default: bool,
     #[serde(default)]
     pub value:   String,
-    #[serde(default = "default_string")]
+    #[serde(default)]
     pub description: String,
 }
 
