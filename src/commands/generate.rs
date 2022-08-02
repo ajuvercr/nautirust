@@ -149,6 +149,12 @@ impl Command {
                             "Set up stream reader {}",
                             arg_style.apply_to(&arg.id)
                         );
+                        if !arg.description.is_empty() {
+                            println!(
+                                "Description: {}",
+                                arg_style.apply_to(&arg.description),
+                            );
+                        }
                         let ids = extract_string_array(&arg.other, "sourceIds")
                             .unwrap_or_default();
 
@@ -206,6 +212,12 @@ impl Command {
                                     arg_style.apply_to(&arg.id),
                                     type_style.apply_to(&arg.ty)
                                 );
+                                if !arg.description.is_empty() {
+                                    println!(
+                                        "Description: {}",
+                                        arg_style.apply_to(&arg.description),
+                                    );
+                                }
 
                                 if let Ok(inp) = Input::<String>::new()
                                     .with_prompt(" ")
