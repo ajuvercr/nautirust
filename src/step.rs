@@ -17,18 +17,10 @@ pub struct StepArg {
     pub ty:      String,
     #[serde(flatten)]
     pub other:   Map<String, Value>,
-    #[serde(default = "default_bool")]
+    #[serde(default)]
     pub default: bool,
-    #[serde(default = "default_string")]
+    #[serde(default)]
     pub value:   String,
-}
-
-fn default_string() -> String{
-    String::default()
-}
-
-fn default_bool() -> bool{
-    false
 }
 
 #[derive(Serialize, Deserialize, Debug)]
