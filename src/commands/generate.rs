@@ -198,25 +198,31 @@ impl Command {
                         }
                     }
                     _ => {
-                        let value = loop {
-                            println!(
-                                "Argument: {} ({})",
-                                arg_style.apply_to(&arg.id),
-                                type_style.apply_to(&arg.ty)
-                            );
+                        let value;
+                        if arg.default == false {
+                            value = loop {
+                                println!(
+                                    "Argument: {} ({})",
+                                    arg_style.apply_to(&arg.id),
+                                    type_style.apply_to(&arg.ty)
+                                );
 
-                            if let Ok(inp) = Input::<String>::new()
-                                .with_prompt(" ")
-                                .completion_with(&Complete)
-                                .interact_text()
-                            {
-                                if let Ok(v) = serde_json::from_str(&inp) {
-                                    break v;
-                                } else {
-                                    break Value::String(inp);
+                                if let Ok(inp) = Input::<String>::new()
+                                    .with_prompt(" ")
+                                    .with_initial_text(arg.value.clone())
+                                    .completion_with(&Complete)
+                                    .interact_text()
+                                {
+                                    if let Ok(v) = serde_json::from_str(&inp) {
+                                        break v;
+                                    } else {
+                                        break Value::String(inp);
+                                    }
                                 }
-                            }
-                        };
+                            };
+                        } else {
+                            value = Value::String(arg.value.clone());
+                        }
                         step_args.add_argument(arg.id.to_string(), value);
                     }
                 }
