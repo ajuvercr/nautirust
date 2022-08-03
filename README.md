@@ -119,7 +119,8 @@ Example step configuration:
   "args": [
     {
       "id": "config",
-      "type": "any"
+      "type": "any",
+      "description": "config argument"
     },
     {
       "id": "a_default_value",

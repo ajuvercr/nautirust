@@ -21,6 +21,8 @@ pub struct StepArg {
     pub default: bool,
     #[serde(default)]
     pub value:   String,
+    #[serde(default)]
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
