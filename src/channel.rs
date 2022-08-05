@@ -101,7 +101,6 @@ pub async fn parse_channel(path: PathBuf) -> Result<Channel, Box<dyn Error>> {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChannelConfig {
-    id:            String,
     #[serde(rename = "type")]
     ty:            String,
     serialization: String,
@@ -110,21 +109,14 @@ pub struct ChannelConfig {
 
 impl ChannelConfig {
     pub fn new(
-        id: String,
         ty: String,
         serialization: String,
         config: Value,
     ) -> Self {
         Self {
-            id,
             ty,
             serialization,
             config,
         }
-    }
-    pub fn with_name(&self, name: &str) -> Self {
-        let mut out = self.clone();
-        out.id = name.to_string();
-        out
     }
 }

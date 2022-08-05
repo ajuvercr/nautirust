@@ -1,5 +1,7 @@
 # Nautirust
 
+If you want to use nautirust but not develop for it, take a look at [nautirust-configs](https://github.com/ajuvercr/nautirust-configs).
+
 Nautirust is a command-line program that helps configuring, and is able to start, a data processing pipeline of processes (called steps).
 It does not restrict on programming language or start-up sequence.
 
@@ -49,7 +51,7 @@ nautirust run plan.json
 
 ## Configuration
 
-Channels and runners have to be defined, this can be done with command line arguments or a config file.
+Channels and runners have to be defined, this can be done with command line arguments or a config file (`orchestrator.toml` or specify with the `--config` flag).
 ```toml
 channels = "configs/channels/*.json"
 runners = "configs/runners/*/runner.json"
@@ -91,6 +93,9 @@ Example runner configuration:
     "canUseChannel": [
       "file", "ws"
     ],
+    "canUseSerialization": [
+      "json", "turtle", "plain"
+    ],
     "requiredFields": [
       "jsFile",
       "methodName"
@@ -101,6 +106,7 @@ Example runner configuration:
 Here a runner called JsRunner is defined. Required fields are
 - `runnerScript`: how is the runner started
 - `canUseChannel`: what channels can this runner provide to the processor
+- `canUseSerialization`: what serializations are supported
 
 When a runner is configured in a step `jsFile` and `methodName` have to be provided.
 
