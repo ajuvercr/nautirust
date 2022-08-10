@@ -1,5 +1,6 @@
 use async_std::fs::read_to_string;
 
+use super::OutputConfig;
 use super::run::Steps;
 use crate::channel::Channel;
 use crate::runner::Runner;
@@ -28,7 +29,7 @@ impl Command {
                     location.as_ref(),
                     &mut procs,
                     id,
-                    false,
+                    OutputConfig::default(),
                 )
             },
         );
@@ -52,7 +53,7 @@ impl Command {
                     location.as_ref(),
                     &mut procs,
                     id,
-                    false,
+                    OutputConfig::default(),
                 )
             },
         );

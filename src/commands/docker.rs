@@ -6,6 +6,7 @@ use async_std::fs::{self, read_to_string, write};
 use tempdir::TempDir;
 
 use super::run::Steps;
+use super::OutputConfig;
 use crate::channel::Channel;
 use crate::runner::Runner;
 
@@ -13,9 +14,9 @@ use crate::runner::Runner;
 #[derive(clap::Args, Debug)]
 pub struct Command {
     /// Config file
-    file: String,
+    file:    String,
     #[clap(short, long)]
-    output: bool,
+    output:  bool,
     /// temporary directory to put step configuration files
     #[clap(short, long)]
     tmp_dir: Option<String>,
@@ -80,7 +81,10 @@ impl Command {
                     location.as_ref(),
                     &mut procs,
                     id,
-                    true,
+                    OutputConfig {
+                        stdout: true,
+                        stderr: false,
+                    },
                 )
             },
         );
@@ -118,23 +122,22 @@ impl Command {
                 runner.location.as_ref(),
                 &mut procs,
                 &value.processor_config.id,
-                true,
+                OutputConfig {
+                    stdout: true,
+                    stderr: false,
+                },
             );
         }
 
         let docker_header = "services:\n";
         let docker_content: String = [docker_header.to_string()]
             .into_iter()
-            .chain(
-                procs
-                    .into_iter()
-                    .map(|(mut proc, h1, h2)| {
-                        proc.wait().unwrap();
-                        let output = h1.join().unwrap();
-                        h2.join().unwrap();
-                        output
-                    })
-            )
+            .chain(procs.into_iter().map(|(mut proc, h1, h2)| {
+                proc.wait().unwrap();
+                let output = h1.join().unwrap();
+                h2.join().unwrap();
+                output
+            }))
             .collect();
 
         if self.output {

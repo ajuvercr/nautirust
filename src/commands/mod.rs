@@ -85,12 +85,18 @@ fn get_used_channels<'a>(
     channels.iter().filter(move |chan| is_present(&chan.id))
 }
 
+#[derive(Default)]
+pub struct OutputConfig {
+    stdout: bool,
+    stderr: bool,
+}
+
 fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     script: Str,
     location: Option<S>,
     name: &str,
-    output: bool,
-) -> Option<(std::process::Child, JoinHandle<String>, JoinHandle<()>)> {
+    output: OutputConfig,
+) -> Option<(std::process::Child, JoinHandle<String>, JoinHandle<String>)> {
     let location = location.and_then(expand_tilde);
 
     let mut proc = std::process::Command::new("sh");
@@ -112,7 +118,7 @@ fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
         BufReader::new(stdout).lines().for_each(|line| {
             let line = line.unwrap_or_else(|_| String::from("error"));
             println!("\x1b[32mINFO\x1b[39m {}: {}", id1, line);
-            if output {
+            if output.stdout {
                 lines.push(line);
             }
         });
@@ -121,13 +127,19 @@ fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
 
     let id2 = name.to_string();
     let h2 = spawn(move || {
+        let mut lines = Vec::new();
         BufReader::new(stderr).lines().for_each(|line| {
+            let line = line.unwrap_or_else(|_| String::from("error"));
             println!(
                 "\x1b[31mERRO\x1b[39m {}: {}",
                 id2,
-                line.unwrap_or_else(|_| String::from("error"))
-            )
+                line,
+            );
+            if output.stderr {
+                lines.push(line);
+            }
         });
+        lines.into_iter().collect()
     });
 
     Some((child, h1, h2))
@@ -136,9 +148,9 @@ fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
 fn add_add_subproc<Str: AsRef<str>, S: AsRef<Path>>(
     script: &Option<Str>,
     location: Option<S>,
-    procs: &mut Vec<(Child, JoinHandle<String>, JoinHandle<()>)>,
+    procs: &mut Vec<(Child, JoinHandle<String>, JoinHandle<String>)>,
     id: &str,
-    output: bool,
+    output: OutputConfig,
 ) {
     if let Some(stop_script) = script {
         let proc = start_subproc(stop_script, location, id, output);

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use async_std::fs;
@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 
 use crate::channel::{Channel, ChannelConfig};
 use crate::runner::Runner;
-use crate::step::{self, Step, StepArguments};
+use crate::step::{self, Output, Step, StepArgument, StepArguments, SubStep};
 
 /// Generate a pipeline of steps
 #[derive(clap::Args, Debug)]
@@ -27,12 +27,11 @@ pub struct Command {
     automatic: bool,
 }
 
-pub type Args = HashMap<String, Value>;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RunConfig {
     #[serde(rename = "processorConfig")]
     processor: Step,
-    args:      Args,
+    args:      HashMap<String, StepArgument>,
 }
 
 #[derive(Debug)]
@@ -128,8 +127,9 @@ impl Command {
             .collect::<HashMap<_, _>>();
 
         let mut open_channels: Vec<TmpTarget<'_>> = Vec::new();
-
         let mut all_step_args: HashMap<String, StepArguments> = HashMap::new();
+        let mut done_steps = Vec::<String>::new();
+        let mut used_steps = HashSet::<String>::new();
 
         for step in &steps {
             let mut step_args = StepArguments::new(step);
@@ -155,12 +155,13 @@ impl Command {
                                 arg_style.apply_to(&arg.description),
                             );
                         }
-                        let ids = extract_string_array(&arg.other, "sourceIds")
-                            .unwrap_or_default();
+                        let source_ids =
+                            extract_string_array(&arg.other, "sourceIds")
+                                .unwrap_or_default();
 
-                        let mut targets = Vec::new();
+                        let mut fields = HashMap::new();
 
-                        for id in &ids {
+                        for id in &source_ids {
                             // todo! make better
                             let (config, tmp_target) = ask_channel_config(
                                 id,
@@ -178,15 +179,16 @@ impl Command {
                                     .unwrap()
                                     .use_target(
                                         tmp_target.writer_id,
-                                        config.with_name(tmp_target.name),
+                                        tmp_target.name,
+                                        config.clone(),
                                     );
                             }
 
-                            targets.push(config);
+                            fields.insert(id.to_string(), config);
                         }
 
-                        let value = serde_json::to_value(targets).unwrap();
-                        step_args.add_argument(arg.id.to_string(), value);
+                        let argument = StepArgument::StreamReader { fields };
+                        step_args.add_argument(arg.id.to_string(), argument);
                     }
                     "streamWriter" => {
                         let ids = extract_string_array(&arg.other, "targetIds")
@@ -204,38 +206,106 @@ impl Command {
                         }
                     }
                     _ => {
-                        let value;
-                        if arg.default == false {
-                            value = loop {
-                                println!(
-                                    "Argument: {} ({})",
-                                    arg_style.apply_to(&arg.id),
-                                    type_style.apply_to(&arg.ty)
-                                );
-                                if !arg.description.is_empty() {
-                                    println!(
-                                        "Description: {}",
-                                        arg_style.apply_to(&arg.description),
-                                    );
-                                }
-
-                                if let Ok(inp) = Input::<String>::new()
-                                    .with_prompt(" ")
-                                    .with_initial_text(arg.value.clone())
-                                    .completion_with(&Complete)
-                                    .interact_text()
-                                {
-                                    if let Ok(v) = serde_json::from_str(&inp) {
-                                        break v;
-                                    } else {
-                                        break Value::String(inp);
-                                    }
-                                }
-                            };
-                        } else {
-                            value = Value::String(arg.value.clone());
+                        println!(
+                            "Argument: {} ({})",
+                            arg_style.apply_to(&arg.id),
+                            type_style.apply_to(&arg.ty)
+                        );
+                        if !arg.description.is_empty() {
+                            println!(
+                                "Description: {}",
+                                arg_style.apply_to(&arg.description),
+                            );
                         }
-                        step_args.add_argument(arg.id.to_string(), value);
+                        let input_options = ["plain", "file", "process"];
+
+                        let input_choice =
+                            ask_user_for("input type", &input_options, false);
+
+                        let argument = match input_options[input_choice] {
+                            "plain" => {
+                                let string = if arg.default {
+                                    arg.value.clone()
+                                } else {
+                                    let mut prompt = Input::<String>::new();
+                                    prompt
+                                        .with_prompt(" ")
+                                        .with_initial_text(arg.value.clone())
+                                        .completion_with(&Complete);
+                                    ask_until_ready(|| prompt.interact_text())
+                                };
+
+                                let value = serde_json::to_value(&string)
+                                    .unwrap_or(Value::String(string));
+                                StepArgument::Plain { value }
+                            }
+                            "file" => {
+                                let mut prompt = Input::<String>::new();
+                                prompt
+                                    .with_prompt("Path: ")
+                                    .with_initial_text(arg.value.clone())
+                                    .completion_with(&Complete);
+                                let path =
+                                    ask_until_ready(|| prompt.interact_text());
+
+                                let serialization = ask_user_for_serialization(
+                                    serialization_types,
+                                );
+
+                                StepArgument::File {
+                                    path,
+                                    serialization,
+                                }
+                            }
+                            "process" => {
+                                let process_index = ask_user_for(
+                                    "Process Name",
+                                    &done_steps,
+                                    false,
+                                );
+                                let output = ask_user_for(
+                                    "Process output",
+                                    &["stdout", "stderr"],
+                                    false,
+                                );
+                                let output = if output == 0 {
+                                    Output::Stdout
+                                } else {
+                                    Output::Stderr
+                                };
+
+                                used_steps.insert(
+                                    done_steps[process_index].to_string(),
+                                );
+                                let linked_step = all_step_args
+                                    .get(&done_steps[process_index])
+                                    .unwrap();
+                                let linked_step_ser = serializations_per_runner
+                                    [&linked_step.step.runner_id];
+
+                                let possible_sers: Vec<_> = serialization_types
+                                    .iter()
+                                    .filter(|x| {
+                                        linked_step_ser.iter().any(|y| x == &y)
+                                    })
+                                    .collect();
+                                let serialization =
+                                    ask_user_for_serialization(&possible_sers);
+
+                                StepArgument::Step {
+                                    sub: SubStep {
+                                        run: linked_step
+                                            .clone()
+                                            .into_runthing(),
+                                        output,
+                                        serialization,
+                                    },
+                                }
+                            }
+                            _ => unreachable!(),
+                        };
+
+                        step_args.add_argument(arg.id.to_string(), argument);
                     }
                 }
             }
@@ -246,6 +316,8 @@ impl Command {
             {
                 panic!("Found multiple steps with the same id '{}'", step.id);
             }
+
+            done_steps.push(step.id.to_string());
         }
 
         if !open_channels.is_empty() {
@@ -267,22 +339,19 @@ impl Command {
                 let ser =
                     ask_user_for_serialization(target.possible_serializations);
 
-                let ch_config = ChannelConfig::new(
-                    target.name.to_string(),
-                    ty.to_string(),
-                    ser,
-                    config,
-                );
+                let ch_config = ChannelConfig::new(ty.to_string(), ser, config);
 
-                all_step_args
-                    .get_mut(target.step_id)
-                    .unwrap()
-                    .use_target(target.writer_id, ch_config);
+                all_step_args.get_mut(target.step_id).unwrap().use_target(
+                    target.writer_id,
+                    target.name,
+                    ch_config,
+                );
             }
         }
 
         let args = all_step_args
             .into_values()
+            .filter(|args| !used_steps.contains(&args.step.id))
             .map(StepArguments::into_value)
             .collect::<Vec<_>>();
 
@@ -389,13 +458,10 @@ fn ask_channel_config<'a>(
     let (config, ty) = ask_user_for_channel(&types, channel_options, automatic);
     let ser = ask_user_for_serialization(&sers);
 
-    Some((
-        ChannelConfig::new(id.to_string(), ty.to_string(), ser, config),
-        target,
-    ))
+    Some((ChannelConfig::new(ty.to_string(), ser, config), target))
 }
 
-fn ask_user_for_serialization(options: &[String]) -> String {
+fn ask_user_for_serialization<S: Display>(options: &[S]) -> String {
     let ser_index = ask_user_for("What serialization?", options, false);
 
     options[ser_index].to_string()
@@ -421,6 +487,14 @@ fn ask_user_for_channel<'a>(
     let channel_index = ask_user_for("Choose channel config", options, false);
 
     (options.remove(channel_index), ty)
+}
+
+fn ask_until_ready<T, E, F: FnMut() -> Result<T, E>>(mut f: F) -> T {
+    loop {
+        if let Ok(x) = f() {
+            break x;
+        }
+    }
 }
 
 fn ask_user_for<T: std::fmt::Display>(

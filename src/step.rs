@@ -8,24 +8,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::channel::ChannelConfig;
+use crate::commands::run::RunThing;
 use crate::runner::Runner;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StepArg {
-    pub id:      String,
+    pub id:          String,
     #[serde(rename = "type")]
-    pub ty:      String,
+    pub ty:          String,
     #[serde(flatten)]
-    pub other:   Map<String, Value>,
+    pub other:       Map<String, Value>,
     #[serde(default)]
-    pub default: bool,
+    pub default:     bool,
     #[serde(default)]
-    pub value:   String,
+    pub value:       String,
     #[serde(default)]
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Step {
     pub id:        String,
     #[serde(rename = "runnerId")]
@@ -89,32 +90,81 @@ pub async fn parse_step<S: AsRef<Path>>(
     Ok(channel)
 }
 
-pub struct StepArguments {
-    step:          Value,
-    stream_reader: HashMap<String, Vec<ChannelConfig>>,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Output {
+    Stdout,
+    Stderr,
+}
 
-    arguments: Vec<(String, Value)>,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SubStep {
+    pub run:           RunThing,
+    pub serialization: String,
+    pub output:        Output,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum StepArgument {
+    StreamReader {
+        fields: HashMap<String, ChannelConfig>,
+    },
+    StreamWriter {
+        fields: HashMap<String, ChannelConfig>,
+    },
+    File {
+        path:          String,
+        serialization: String,
+    },
+    Plain {
+        value: Value,
+    },
+    Step {
+        #[serde(flatten)]
+        sub: SubStep,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StepArguments {
+    pub step:      Step,
+    arguments: HashMap<String, StepArgument>,
 }
 
 impl StepArguments {
-    pub fn new(step: &Step) -> Self {
-        let value = serde_json::to_value(step).unwrap();
+    pub fn new(from: &Step) -> Self {
         Self {
-            step:          value,
-            stream_reader: HashMap::new(),
-            arguments:     Vec::new(),
+            step:      from.clone(),
+            arguments: HashMap::new(),
         }
     }
 
-    pub fn add_argument(&mut self, id: String, value: Value) {
-        self.arguments.push((id, value));
+    pub fn add_argument(&mut self, id: String, value: StepArgument) {
+        self.arguments.insert(id, value);
     }
 
-    pub fn use_target(&mut self, id: &str, config: ChannelConfig) {
-        if let Some(configs) = self.stream_reader.get_mut(id) {
-            configs.push(config);
-        } else {
-            self.stream_reader.insert(id.to_string(), vec![config]);
+    pub fn use_target(&mut self, id: &str, field: &str, config: ChannelConfig) {
+        if !self.arguments.contains_key(id) {
+            self.arguments.insert(
+                id.to_string(),
+                StepArgument::StreamWriter {
+                    fields: HashMap::new(),
+                },
+            );
+        }
+
+        match self.arguments.get_mut(id) {
+            Some(StepArgument::StreamWriter { ref mut fields }) => {
+                fields.insert(field.to_string(), config);
+            }
+            _ => panic!("expected a stream writer"),
+        }
+    }
+
+    pub fn into_runthing(self) -> RunThing {
+        RunThing {
+            processor_config: self.step,
+            args: self.arguments,
         }
     }
 
@@ -123,11 +173,6 @@ impl StepArguments {
 
         self.arguments.into_iter().for_each(|(id, arg)| {
             out.insert(id, arg);
-        });
-
-        self.stream_reader.into_iter().for_each(|(id, reader)| {
-            let value = serde_json::to_value(reader).unwrap();
-            out.insert(id, value);
         });
 
         json!({
