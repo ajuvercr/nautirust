@@ -108,11 +108,7 @@ pub struct ChannelConfig {
 }
 
 impl ChannelConfig {
-    pub fn new(
-        ty: String,
-        serialization: String,
-        config: Value,
-    ) -> Self {
+    pub fn new(ty: String, serialization: String, config: Value) -> Self {
         Self {
             ty,
             serialization,
