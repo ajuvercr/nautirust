@@ -88,7 +88,15 @@ impl<'a> RunHandler<'a> {
             }
 
             let process_config_id = run.processor_config.id.clone();
-            let (mut child, stdout, stderr) = run_thing(run, self, OutputConfig { stdout: true, stderr: true }).await?;
+            let (mut child, stdout, stderr) = run_thing(
+                run,
+                self,
+                OutputConfig {
+                    stdout: true,
+                    stderr: true,
+                },
+            )
+            .await?;
 
             child.wait().ok()?;
 
@@ -100,7 +108,8 @@ impl<'a> RunHandler<'a> {
                 Output::Stderr => (stderr, ".stderr"),
             };
 
-            let path = self.get_tmp_file(&format!("{}{}", process_config_id, terminator));
+            let path = self
+                .get_tmp_file(&format!("{}{}", process_config_id, terminator));
             write(&path, content).await.ok()?;
 
             let out = StepArgument::File {
@@ -140,7 +149,7 @@ async fn run_thing(
 
     let run = SimpleRun {
         processor_config: &run.processor_config,
-        args
+        args,
     };
 
     let config = serde_json::to_string_pretty(&run).ok()?;
@@ -176,12 +185,7 @@ async fn run_value(
         .replace("{config}", &config_path)
         .replace("{cwd}", &current_dir);
 
-    super::start_subproc(
-        command,
-        runner.location.as_ref(),
-        name,
-        output
-    )
+    super::start_subproc(command, runner.location.as_ref(), name, output)
 }
 
 impl Command {
@@ -199,7 +203,9 @@ impl Command {
         fs::create_dir_all(&handler.tmp_dir).await.unwrap();
 
         for value in values.steps {
-            let proc = run_thing(value, &mut handler, OutputConfig::default()).await.expect("");
+            let proc = run_thing(value, &mut handler, OutputConfig::default())
+                .await
+                .expect("");
             procs.push(proc);
         }
 

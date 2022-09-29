@@ -127,11 +127,11 @@ pub enum StepArgument {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StepArguments {
-    pub step:      Step,
+    pub step:  Step,
     arguments: HashMap<String, StepArgument>,
 }
 
-impl StepArguments {
+impl<'a> StepArguments {
     pub fn new(from: &Step) -> Self {
         Self {
             step:      from.clone(),
@@ -164,7 +164,7 @@ impl StepArguments {
     pub fn into_runthing(self) -> RunThing {
         RunThing {
             processor_config: self.step,
-            args: self.arguments,
+            args:             self.arguments,
         }
     }
 

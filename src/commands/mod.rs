@@ -130,11 +130,7 @@ fn start_subproc<Str: AsRef<str>, S: AsRef<Path>>(
         let mut lines = Vec::new();
         BufReader::new(stderr).lines().for_each(|line| {
             let line = line.unwrap_or_else(|_| String::from("error"));
-            println!(
-                "\x1b[31mERRO\x1b[39m {}: {}",
-                id2,
-                line,
-            );
+            println!("\x1b[31mERRO\x1b[39m {}: {}", id2, line,);
             if output.stderr {
                 lines.push(line);
             }

@@ -1,8 +1,7 @@
-
 use async_std::fs::read_to_string;
 
-use super::OutputConfig;
 use super::run::{RunThing, Steps};
+use super::OutputConfig;
 use crate::channel::Channel;
 use crate::runner::Runner;
 use crate::step::Step;
@@ -28,7 +27,13 @@ impl Command {
                  id,
                  ..
              }| {
-                super::add_add_subproc(start, location.as_ref(), &mut procs, id, OutputConfig::default())
+                super::add_add_subproc(
+                    start,
+                    location.as_ref(),
+                    &mut procs,
+                    id,
+                    OutputConfig::default(),
+                )
             },
         );
 
