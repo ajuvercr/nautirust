@@ -13,19 +13,14 @@ use tempdir::TempDir;
 use super::OutputConfig;
 use crate::channel::Channel;
 use crate::runner::Runner;
-use crate::step::{Output, Step, StepArgument, SubStep};
+use crate::step::{Output, Step, StepArgument, SubStep, RunThing};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RunThing {
-    #[serde(rename = "processorConfig")]
-    pub processor_config: Step,
-    pub(crate) args:      HashMap<String, StepArgument>,
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Steps {
     #[serde(rename = "values")]
-    pub steps: Vec<RunThing>,
+    pub steps:  Vec<RunThing>,
+    pub params: Vec<String>,
 }
 
 /// Run a configured pipeline
@@ -71,58 +66,66 @@ impl<'a> RunHandler<'a> {
     }
 
     #[async_recursion]
-    async fn arg_to_value(&mut self, arg: StepArgument) -> Option<Value> {
-        if let StepArgument::Step {
-            sub:
-                SubStep {
+    async fn arg_to_value(
+        &mut self,
+        arg: StepArgument,
+        params: &Params,
+    ) -> Option<Value> {
+        match arg {
+            StepArgument::Step {
+                sub:
+                    SubStep {
+                        run,
+                        serialization,
+                        output,
+                    },
+            } => {
+                if let Some(value) =
+                    self.sub_argument_outputs.get(&run.processor_config.id)
+                {
+                    return value.clone().into();
+                }
+
+                let process_config_id = run.processor_config.id.clone();
+                let (mut child, stdout, stderr) = run_thing(
                     run,
+                    self,
+                    OutputConfig {
+                        stdout: true,
+                        stderr: true,
+                    },
+                    params,
+                )
+                .await?;
+
+                child.wait().ok()?;
+
+                let stdout = stdout.join().ok()?;
+                let stderr = stderr.join().ok()?;
+
+                let (content, terminator) = match output {
+                    Output::Stdout => (stdout, ".stdout"),
+                    Output::Stderr => (stderr, ".stderr"),
+                };
+
+                let path = self.get_tmp_file(&format!(
+                    "{}{}",
+                    process_config_id, terminator
+                ));
+                write(&path, content).await.ok()?;
+
+                let out = StepArgument::File {
+                    path: path.to_string_lossy().to_string(),
                     serialization,
-                    output,
-                },
-        } = arg
-        {
-            if let Some(value) =
-                self.sub_argument_outputs.get(&run.processor_config.id)
-            {
-                return value.clone().into();
+                };
+
+                let value = serde_json::to_value(out).ok()?;
+                self.sub_argument_outputs
+                    .insert(process_config_id, value.clone());
+                value.into()
             }
-
-            let process_config_id = run.processor_config.id.clone();
-            let (mut child, stdout, stderr) = run_thing(
-                run,
-                self,
-                OutputConfig {
-                    stdout: true,
-                    stderr: true,
-                },
-            )
-            .await?;
-
-            child.wait().ok()?;
-
-            let stdout = stdout.join().ok()?;
-            let stderr = stderr.join().ok()?;
-
-            let (content, terminator) = match output {
-                Output::Stdout => (stdout, ".stdout"),
-                Output::Stderr => (stderr, ".stderr"),
-            };
-
-            let path = self
-                .get_tmp_file(&format!("{}{}", process_config_id, terminator));
-            write(&path, content).await.ok()?;
-
-            let out = StepArgument::File {
-                path: path.to_string_lossy().to_string(),
-                serialization,
-            };
-
-            let value = serde_json::to_value(out).ok()?;
-            self.sub_argument_outputs
-                .insert(process_config_id, value.clone());
-            value.into()
-        } else {
-            serde_json::to_value(arg).ok()
+            StepArgument::Param { name } => params.get(&name).cloned(),
+            arg => serde_json::to_value(arg).ok(),
         }
     }
 }
@@ -131,6 +134,7 @@ async fn run_thing(
     run: RunThing,
     handler: &mut RunHandler<'_>,
     output: OutputConfig,
+    params: &Params,
 ) -> Option<(Child, JoinHandle<String>, JoinHandle<String>)> {
     #[derive(Serialize)]
     struct SimpleRun<'a> {
@@ -141,7 +145,7 @@ async fn run_thing(
 
     let mut args = HashMap::new();
     for (k, v) in run.args {
-        args.insert(k, handler.arg_to_value(v).await?);
+        args.insert(k, handler.arg_to_value(v, params).await?);
     }
 
     let name = &run.processor_config.id;
@@ -188,6 +192,37 @@ async fn run_value(
     super::start_subproc(command, runner.location.as_ref(), name, output)
 }
 
+type Params = HashMap<String, Value>;
+
+fn get_params(params: &[String]) -> Result<Params, Vec<String>> {
+    let config = config::Config::builder()
+        .build()
+        .map_err(|_| vec!["building config failed".to_string()])?;
+
+    params
+        .iter()
+        .map(|p| {
+            config
+                .get(p)
+                .map(|x| (p, x))
+                .map_err(|_| format!("Param {} not found", p))
+        })
+        .fold(Ok(HashMap::new()), |acc, i| {
+            match (acc, i) {
+                (Ok(mut x), Ok((p, v))) => {
+                    x.insert(p.to_string(), v);
+                    Ok(x)
+                }
+                (Ok(_), Err(y)) => Err(vec![y]),
+                (Err(mut x), Err(y)) => {
+                    x.push(y);
+                    Err(x)
+                }
+                (x, _) => x,
+            }
+        })
+}
+
 impl Command {
     pub(crate) async fn execute(
         self,
@@ -197,15 +232,31 @@ impl Command {
         let content = read_to_string(&self.file).await.unwrap();
         let values: Steps = serde_json::from_str(&content).unwrap();
 
+        let params = match get_params(&values.params) {
+            Ok(x) => x,
+            Err(e) => {
+                eprintln!("Failed to get params.");
+                for e in e {
+                    eprintln!("Error: {}", e);
+                }
+                return;
+            }
+        };
+
         let mut procs = Vec::new();
 
         let mut handler = RunHandler::from(&self, &runners);
         fs::create_dir_all(&handler.tmp_dir).await.unwrap();
 
         for value in values.steps {
-            let proc = run_thing(value, &mut handler, OutputConfig::default())
-                .await
-                .expect("");
+            let proc = run_thing(
+                value,
+                &mut handler,
+                OutputConfig::default(),
+                &params,
+            )
+            .await
+            .expect("");
             procs.push(proc);
         }
 

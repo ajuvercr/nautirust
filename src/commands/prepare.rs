@@ -1,10 +1,10 @@
 use async_std::fs::read_to_string;
 
-use super::run::{RunThing, Steps};
+use super::run::Steps;
 use super::OutputConfig;
 use crate::channel::Channel;
 use crate::runner::Runner;
-use crate::step::Step;
+use crate::step::{Step, RunThing};
 
 /// Prepares the execution pipeline by starting the required channels/runner
 #[derive(clap::Args, Debug)]

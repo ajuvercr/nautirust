@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use async_std::fs;
 use dialoguer::console::Style;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::channel::Channel;
 use crate::commands::generate::state::State;
 use crate::runner::Runner;
-use crate::step::{self, Step, StepArgument};
+use crate::step;
 
 /// Generate a pipeline of steps
 #[derive(clap::Args, Debug)]
@@ -23,13 +22,6 @@ pub struct Command {
     /// Try infer basic configurations details
     #[clap(short, long)]
     automatic: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RunConfig {
-    #[serde(rename = "processorConfig")]
-    processor: Step,
-    args:      HashMap<String, StepArgument>,
 }
 
 pub struct Styles {

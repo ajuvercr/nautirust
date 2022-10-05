@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use dialoguer::{Completion, Input};
-use serde::Serialize;
 use serde_json::{Map, Value};
 
 use super::command::Runtime;
 use super::user;
 use crate::channel::ChannelConfig;
+use crate::commands::run::Steps;
 use crate::step::{
     Output, Step, StepArg, StepArgument, StepArguments, SubStep,
 };
@@ -81,6 +81,7 @@ pub struct State<'a> {
     all_step_args: HashMap<String, StepArguments>,
     done:          Vec<String>,
     used:          HashSet<String>,
+    params: Vec<String>,
 }
 
 pub struct Ctx<'a> {
@@ -218,7 +219,7 @@ impl<'a> State<'a> {
             println!("Description: {}", style.arg.apply_to(&arg.description),);
         }
 
-        let input_options = ["plain", "file", "process"];
+        let input_options = ["plain", "file", "process", "param"];
 
         let input_choice =
             user::ask_user_for("input type", &input_options, false);
@@ -257,6 +258,15 @@ impl<'a> State<'a> {
                 }
             }
             "process" => self.process_output(runtime, ctx),
+            "param" => {
+                let mut prompt = Input::<String>::new();
+                prompt.with_prompt("Name: ");
+
+                let name = user::ask_until_ready(|| prompt.interact_text());
+                self.params.push(name.clone());
+
+                StepArgument::Param { name }
+            }
             _ => unreachable!(),
         };
 
@@ -293,11 +303,7 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn complete(
-        mut self,
-        automatic: bool,
-        runtime: &mut Runtime,
-    ) -> impl Serialize {
+    pub fn complete(mut self, automatic: bool, runtime: &mut Runtime) -> Steps {
         if !self.open_channels.is_empty() {
             println!("Lingering channels detected!");
             println!("Use remaining channel");
@@ -336,6 +342,9 @@ impl<'a> State<'a> {
 
         println!("Got {} steps", args.len());
 
-        json!({ "values": args })
+        Steps {
+            steps:  args,
+            params: self.params,
+        }
     }
 }

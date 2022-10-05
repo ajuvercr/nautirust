@@ -1,8 +1,5 @@
-use std::error::Error;
 use std::path::PathBuf;
 
-use async_std::fs::read_to_string;
-use glob::glob;
 use jsonschema::JSONSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -75,28 +72,46 @@ impl<'de> Deserialize<'de> for Channel {
     }
 }
 
-pub async fn parse_channels(path: &str) -> Vec<Channel> {
-    let mut channels = Vec::new();
-    let mut iterator = glob(path)
-        .expect("Failed to read channels glob pattern")
-        .flatten()
-        .map(parse_channel);
 
-    while let Some(item) = iterator.next() {
-        match item.await {
-            Ok(channel) => channels.push(channel),
-            Err(e) => eprintln!("Parsing channel failed '{}'", e),
+#[cfg(feature = "io")]
+pub use io::*;
+
+#[cfg(feature = "io")]
+mod io {
+    use std::error::Error;
+    use std::path::PathBuf;
+
+    use glob::glob;
+
+    use super::*;
+
+    pub async fn parse_channels(path: &str) -> Vec<Channel> {
+        let mut channels = Vec::new();
+        let mut iterator = glob(path)
+            .expect("Failed to read channels glob pattern")
+            .flatten()
+            .map(parse_channel);
+
+        while let Some(item) = iterator.next() {
+            match item.await {
+                Ok(channel) => channels.push(channel),
+                Err(e) => eprintln!("Parsing channel failed '{}'", e),
+            }
         }
+
+        channels
     }
 
-    channels
-}
+    pub async fn parse_channel(
+        path: PathBuf,
+    ) -> Result<Channel, Box<dyn Error>> {
+        use async_std::fs::read_to_string;
 
-pub async fn parse_channel(path: PathBuf) -> Result<Channel, Box<dyn Error>> {
-    let file = read_to_string(&path).await?;
-    let mut channel: Channel = serde_json::from_str(&file)?;
-    channel.location = path.parent().map(|x| x.into());
-    Ok(channel)
+        let file = read_to_string(&path).await?;
+        let mut channel: Channel = serde_json::from_str(&file)?;
+        channel.location = path.parent().map(|x| x.into());
+        Ok(channel)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

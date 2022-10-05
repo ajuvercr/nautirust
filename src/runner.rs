@@ -1,12 +1,7 @@
-use std::error::Error;
 use std::path::PathBuf;
 
-use async_std::fs::read_to_string;
-use glob::glob;
 use jsonschema::JSONSchema;
 use serde::{Deserialize, Serialize};
-
-use crate::channel::Channel;
 
 #[derive(Serialize, Debug)]
 pub struct Runner {
@@ -82,42 +77,62 @@ impl<'de> Deserialize<'de> for Runner {
     }
 }
 
-pub async fn parse_runners(path: &str, channels: &[Channel]) -> Vec<Runner> {
-    let mut runners = Vec::new();
-    let iterator = glob(path)
-        .expect("Failed to read channels glob pattern")
-        .flatten()
-        .map(parse_runner);
+#[cfg(feature = "io")]
+pub use io::*;
+#[cfg(feature = "io")]
+mod io {
+    use std::error::Error;
+    use std::path::PathBuf;
 
-    let channel_exists = |id: &str| channels.iter().any(|c| c.id == id);
+    use glob::glob;
 
-    for item in iterator {
-        match item.await {
-            Ok(runner) => {
-                if runner.can_use_channel.iter().fold(
-                    true,
-                    |acc, channel_id| {
-                        if !channel_exists(channel_id) {
-                            eprintln!("No such channel found! {}", channel_id);
-                            false
-                        } else {
-                            acc
-                        }
-                    },
-                ) {
-                    runners.push(runner);
+    use super::*;
+    use crate::channel::Channel;
+
+    pub async fn parse_runners(
+        path: &str,
+        channels: &[Channel],
+    ) -> Vec<Runner> {
+        let mut runners = Vec::new();
+        let iterator = glob(path)
+            .expect("Failed to read channels glob pattern")
+            .flatten()
+            .map(parse_runner);
+
+        let channel_exists = |id: &str| channels.iter().any(|c| c.id == id);
+
+        for item in iterator {
+            match item.await {
+                Ok(runner) => {
+                    if runner.can_use_channel.iter().fold(
+                        true,
+                        |acc, channel_id| {
+                            if !channel_exists(channel_id) {
+                                eprintln!(
+                                    "No such channel found! {}",
+                                    channel_id
+                                );
+                                false
+                            } else {
+                                acc
+                            }
+                        },
+                    ) {
+                        runners.push(runner);
+                    }
                 }
+                Err(e) => eprintln!("Parsing runner failed '{}'", e),
             }
-            Err(e) => eprintln!("Parsing runner failed '{}'", e),
         }
+
+        runners
     }
 
-    runners
-}
-
-pub async fn parse_runner(path: PathBuf) -> Result<Runner, Box<dyn Error>> {
-    let file = read_to_string(&path).await?;
-    let mut channel: Runner = serde_json::from_str(&file)?;
-    channel.location = path.parent().map(|x| x.into());
-    Ok(channel)
+    pub async fn parse_runner(path: PathBuf) -> Result<Runner, Box<dyn Error>> {
+        use async_std::fs::read_to_string;
+        let file = read_to_string(&path).await?;
+        let mut channel: Runner = serde_json::from_str(&file)?;
+        channel.location = path.parent().map(|x| x.into());
+        Ok(channel)
+    }
 }
