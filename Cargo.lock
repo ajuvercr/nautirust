@@ -813,7 +813,6 @@ dependencies = [
  "glob",
  "jsonpath-rust",
  "jsonschema",
- "lazy_static",
  "serde",
  "serde_json",
  "tempdir",

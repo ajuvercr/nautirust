@@ -7,7 +7,6 @@ use config::ConfigBuilder;
 use serde::{Deserialize, Serialize};
 
 extern crate jsonschema;
-extern crate lazy_static;
 
 #[macro_use]
 extern crate serde_json;
@@ -18,6 +17,7 @@ use clap::{Parser, Subcommand};
 
 mod channel;
 mod commands;
+mod param;
 mod runner;
 mod step;
 
@@ -106,3 +106,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
